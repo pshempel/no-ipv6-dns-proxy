@@ -1,0 +1,40 @@
+Source: dns-proxy
+Section: net
+Priority: optional
+Maintainer: Philip S. Hempel <pshempel@linuxsr.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               python3-all,
+               python3-setuptools,
+               python3-twisted (>= 18.0.0),
+               python3-openssl (>= 18.0.0),
+               python3-service-identity (>= 18.1.0)
+Standards-Version: 4.6.2
+Homepage: https://github.com/example/dns-proxy
+Rules-Requires-Root: no
+
+Package: dns-proxy
+Architecture: all
+Depends: ${misc:Depends},
+         ${python3:Depends},
+         python3-twisted (>= 18.0.0),
+         python3-openssl (>= 18.0.0),
+         python3-service-identity (>= 18.1.0),
+         adduser
+Recommends: logrotate
+Suggests: bind9-dnsutils
+Description: DNS CNAME flattening proxy with caching
+ DNS Proxy is a high-performance DNS proxy that flattens CNAME records
+ to A records, removes AAAA records, and provides intelligent caching.
+ Built with Twisted for maximum performance and reliability.
+ .
+ Key Features:
+  * CNAME Flattening: Automatically resolves CNAME chains to final A records
+  * AAAA Record Removal: Strips IPv6 AAAA records from responses
+  * High Performance: Handles 500-1000+ DNS queries per second
+  * Intelligent Caching: TTL-aware caching with configurable limits
+  * Security: Privilege dropping, secure defaults
+  * RFC Compliant: Follows DNS standards and best practices
+  * Multi-Architecture: Runs on ARM64, AMD64, and other Linux architectures
+  * Production Ready: Systemd integration, logging, monitoring
+  * UDP and TCP Support: Handles both small and large DNS responses

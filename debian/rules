@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	# Install systemd service file
+	install -D -m 644 dns-proxy.service debian/dns-proxy/lib/systemd/system/dns-proxy.service
+	# Install configuration file
+	install -D -m 644 dns-proxy.cfg debian/dns-proxy/etc/dns-proxy/dns-proxy.cfg
+
+override_dh_installsystemd:
+	dh_installsystemd --name=dns-proxy
+
+override_dh_auto_test:
+	# Skip tests for chroot builds

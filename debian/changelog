@@ -1,0 +1,20 @@
+dns-proxy (1.0.0-1) bookworm; urgency=medium
+
+  * Initial release for Debian Bookworm
+  * DNS CNAME flattening proxy with caching
+  * High-performance Twisted-based implementation
+  * Supports 500-1000+ queries per second
+  * CNAME chain resolution with configurable recursion limits
+  * AAAA record removal for IPv4-only environments
+  * Privilege dropping and security features
+  * Systemd integration with proper service management
+  * Comprehensive logging with syslog support
+  * RFC-compliant DNS handling
+  * Multi-architecture support (ARM64, AMD64, etc.)
+  * CORRECTED: Uses python3-openssl (not python3-pyopenssl)
+  * FIXED: Version requirements compatible with Bookworm packages
+  * FIXED: Removed debian/compat to avoid debhelper conflict
+  * FIXED: Twisted API compatibility for older Bookworm versions
+  * ADDED: Complete UDP and TCP DNS support for RFC compliance
+
+ -- Philip S. Hempel <pshempel@linuxsr.com>  Fri, 30 May 2025 15:55:24 +0000

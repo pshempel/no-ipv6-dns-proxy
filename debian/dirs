@@ -1,0 +1,4 @@
+etc/dns-proxy
+var/lib/dns-proxy
+var/log
+usr/share/doc/dns-proxy

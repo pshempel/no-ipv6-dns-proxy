@@ -1,0 +1,67 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create dns-proxy user and group
+        if ! getent group dns-proxy >/dev/null; then
+            addgroup --system dns-proxy
+        fi
+        
+        if ! getent passwd dns-proxy >/dev/null; then
+            adduser --system --ingroup dns-proxy --home /var/lib/dns-proxy \
+                    --no-create-home --gecos "DNS Proxy daemon" \
+                    --shell /bin/false dns-proxy
+        fi
+        
+        # Create necessary directories
+        mkdir -p /var/lib/dns-proxy
+        mkdir -p /var/log
+        mkdir -p /var/run
+        
+        # Set ownership and permissions
+        chown dns-proxy:dns-proxy /var/lib/dns-proxy
+        chmod 755 /var/lib/dns-proxy
+        
+        # Create log file with proper permissions
+        touch /var/log/dns-proxy.log
+        chown dns-proxy:dns-proxy /var/log/dns-proxy.log
+        chmod 640 /var/log/dns-proxy.log
+        
+        # Set configuration file permissions
+        if [ -f /etc/dns-proxy/dns-proxy.cfg ]; then
+            chmod 644 /etc/dns-proxy/dns-proxy.cfg
+        fi
+        
+        # Handle systemd-resolved conflict
+        if systemctl is-active --quiet systemd-resolved; then
+            echo "Notice: systemd-resolved is running and may conflict with dns-proxy on port 53"
+            echo "You may need to configure systemd-resolved or disable it:"
+            echo "  sudo systemctl stop systemd-resolved"
+            echo "  sudo systemctl disable systemd-resolved"
+            echo "Or configure it to not use port 53:"
+            echo "  echo '[Resolve]' | sudo tee /etc/systemd/resolved.conf.d/no-stub.conf"
+            echo "  echo 'DNSStubListener=no' | sudo tee -a /etc/systemd/resolved.conf.d/no-stub.conf"
+            echo "  sudo systemctl restart systemd-resolved"
+        fi
+        
+        # Enable and start systemd service
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload >/dev/null || true
+            if [ "$1" = "configure" ] && [ -z "$2" ]; then
+                systemctl enable dns-proxy.service >/dev/null || true
+                # Don't auto-start if systemd-resolved is running
+                if ! systemctl is-active --quiet systemd-resolved; then
+                    systemctl start dns-proxy.service >/dev/null || true
+                else
+                    echo "Not auto-starting dns-proxy due to systemd-resolved conflict"
+                    echo "Please resolve the conflict and start manually: systemctl start dns-proxy"
+                fi
+            fi
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

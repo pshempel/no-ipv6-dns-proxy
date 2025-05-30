@@ -1,0 +1,2 @@
+dns-proxy.cfg etc/dns-proxy/
+dns-proxy.service lib/systemd/system/

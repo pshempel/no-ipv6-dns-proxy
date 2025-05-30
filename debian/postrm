@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        # Remove user and group
+        if getent passwd dns-proxy >/dev/null; then
+            deluser dns-proxy >/dev/null || true
+        fi
+        
+        if getent group dns-proxy >/dev/null; then
+            delgroup dns-proxy >/dev/null || true
+        fi
+        
+        # Remove directories and files
+        rm -rf /var/lib/dns-proxy
+        rm -f /var/log/dns-proxy.log*
+        rm -f /var/run/dns-proxy.pid
+        
+        # Remove configuration directory if empty
+        rmdir /etc/dns-proxy 2>/dev/null || true
+        
+        # Reload systemd
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload >/dev/null || true
+        fi
+        ;;
+        
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
