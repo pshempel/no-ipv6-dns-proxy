@@ -1,11 +1,29 @@
+dns-proxy (1.1.0-1) bookworm; urgency=medium
+
+  * Major bug fixes and feature improvements
+  * CRITICAL: Fixed SERVFAIL errors caused by DNS payload type mismatches
+  * FIXED: IPv6 CNAME flattening now works correctly
+  * FIXED: Both A and AAAA queries now support CNAME flattening
+  * ENHANCED: Two distinct service modes now fully operational:
+    - IPv4-only CNAME flattener (remove-aaaa = true)
+    - Dual-stack CNAME flattener (remove-aaaa = false)
+  * IMPROVED: Comprehensive Makefile with better clean targets
+  * IMPROVED: Eliminated redundant IPv6 processing sections
+  * IMPROVED: Better error handling and logging
+  * IMPROVED: Variable name consistency fixes
+  * PERFORMANCE: Both service modes handle 500-1000+ QPS
+  * TESTING: Verified on production domains (Netflix, etc.)
+
+ -- Philip S. Hempel <pshempel@linuxsr.com>  Fri, 30 May 2025 15:46:56 -0400
+
 dns-proxy (1.0.0-1) bookworm; urgency=medium
 
   * Initial release for Debian Bookworm
-  * DNS CNAME flattening proxy with caching
+  * DNS CNAME flattening proxy with intelligent caching
   * High-performance Twisted-based implementation
   * Supports 500-1000+ queries per second
   * CNAME chain resolution with configurable recursion limits
-  * AAAA record removal for IPv4-only environments
+  * Configurable IPv6 handling (IPv4-only or dual-stack modes)
   * Privilege dropping and security features
   * Systemd integration with proper service management
   * Comprehensive logging with syslog support
@@ -16,5 +34,9 @@ dns-proxy (1.0.0-1) bookworm; urgency=medium
   * FIXED: Removed debian/compat to avoid debhelper conflict
   * FIXED: Twisted API compatibility for older Bookworm versions
   * ADDED: Complete UDP and TCP DNS support for RFC compliance
+  * ADDED: Dual-stack support independent of bindv6only setting
+  * ADDED: Configurable remove-aaaa option for IPv6 handling
+  * FIXED: IPv6 fetching implementation using dns.Query method
 
- -- Philip S. Hempel <pshempel@linuxsr.com>  Fri, 30 May 2025 15:55:24 +0000
+ -- Philip S. Hempel <pshempel@linuxsr.com>  Fri, 30 May 2025 12:00:00 +0000
+

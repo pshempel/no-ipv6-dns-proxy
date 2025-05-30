@@ -8,11 +8,13 @@ Before=nss-lookup.target
 Type=simple
 User=root
 Group=root
+
+# Pre-execution setup with proper error handling
 ExecStartPre=/bin/sh -c 'test -f /etc/dns-proxy/dns-proxy.cfg || (echo "Config file missing" && exit 1)'
-ExecStartPre=/bin/sh -c 'mkdir -p /var/run /var/log'
-ExecStartPre=/bin/sh -c 'touch /var/log/dns-proxy.log || true'
-ExecStartPre=/bin/sh -c 'chown dns-proxy:dns-proxy /var/log/dns-proxy.log || true'
-ExecStartPre=/bin/sh -c 'chmod 640 /var/log/dns-proxy.log || true'
+ExecStartPre=/bin/sh -c 'mkdir -p /var/run /var/log /var/lib/dns-proxy'
+ExecStartPre=/bin/sh -c 'touch /var/log/dns-proxy.log && chown dns-proxy:dns-proxy /var/log/dns-proxy.log && chmod 640 /var/log/dns-proxy.log || echo "Warning: Could not setup log file ownership"'
+ExecStartPre=/bin/sh -c 'chown dns-proxy:dns-proxy /var/lib/dns-proxy && chmod 755 /var/lib/dns-proxy || echo "Warning: Could not setup data directory ownership"'
+
 ExecStart=/usr/bin/dns-proxy --config /etc/dns-proxy/dns-proxy.cfg
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
@@ -20,12 +22,12 @@ RestartSec=5
 TimeoutStartSec=30
 TimeoutStopSec=30
 
-# Security settings (but still allow root initially)
+# Security settings (but still allow root initially for port binding)
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/log /var/run /var/lib/dns-proxy
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_CHOWN CAP_FOWNER
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_CHOWN CAP_FOWNER CAP_DAC_OVERRIDE
 AmbientCapabilities=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID
 
 # Logging

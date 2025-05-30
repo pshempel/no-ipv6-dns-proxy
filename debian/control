@@ -23,14 +23,14 @@ Depends: ${misc:Depends},
          adduser
 Recommends: logrotate
 Suggests: bind9-dnsutils
-Description: DNS CNAME flattening proxy with caching
+Description: DNS CNAME flattening proxy with configurable IPv6 handling
  DNS Proxy is a high-performance DNS proxy that flattens CNAME records
- to A records, removes AAAA records, and provides intelligent caching.
- Built with Twisted for maximum performance and reliability.
+ to A records, with configurable IPv6 record handling, and provides 
+ intelligent caching. Built with Twisted for maximum performance and reliability.
  .
  Key Features:
   * CNAME Flattening: Automatically resolves CNAME chains to final A records
-  * AAAA Record Removal: Strips IPv6 AAAA records from responses
+  * Configurable IPv6: Choose IPv4-only or dual-stack (IPv4+IPv6) responses
   * High Performance: Handles 500-1000+ DNS queries per second
   * Intelligent Caching: TTL-aware caching with configurable limits
   * Security: Privilege dropping, secure defaults
@@ -38,3 +38,4 @@ Description: DNS CNAME flattening proxy with caching
   * Multi-Architecture: Runs on ARM64, AMD64, and other Linux architectures
   * Production Ready: Systemd integration, logging, monitoring
   * UDP and TCP Support: Handles both small and large DNS responses
+  * Dual-Stack Support: Works independently of system bindv6only setting

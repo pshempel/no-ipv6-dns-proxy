@@ -278,6 +278,7 @@ def main():
         upstream_server = args.upstream or config.get('forwarder-dns', 'server-address', '8.8.8.8')
         upstream_port = config.getint('forwarder-dns', 'server-port', 53)
         max_recursion = config.getint('cname-flattener', 'max-recursion', 1000)
+        remove_aaaa = config.getboolean('cname-flattener', 'remove-aaaa', True)
         cache_max_size = config.getint('cache', 'max-size', 10000)
         cache_default_ttl = config.getint('cache', 'default-ttl', 300)
         
@@ -290,6 +291,7 @@ def main():
         logger.info(f"  Listen: {listen_address}:{listen_port}")
         logger.info(f"  Upstream: {upstream_server}:{upstream_port}")
         logger.info(f"  Max CNAME recursion: {max_recursion}")
+        logger.info(f"  IPv6 removal: {'enabled' if remove_aaaa else 'disabled'}")
         logger.info(f"  Cache size: {cache_max_size}")
         
         # Create components
@@ -298,7 +300,8 @@ def main():
             upstream_server=upstream_server,
             upstream_port=upstream_port,
             max_recursion=max_recursion,
-            cache=cache
+            cache=cache,
+            remove_aaaa=remove_aaaa
         )
         udp_protocol = DNSProxyProtocol(resolver)
         

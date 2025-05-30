@@ -144,10 +144,11 @@ class DNSProxyResolver:
     """Main DNS resolver with CNAME flattening"""
     
     def __init__(self, upstream_server: str, upstream_port: int = 53, 
-                 max_recursion: int = 1000, cache: DNSCache = None):
+                 max_recursion: int = 1000, cache: DNSCache = None, remove_aaaa: bool = True):
         self.upstream_server = upstream_server
         self.upstream_port = upstream_port
         self.cache = cache or DNSCache()
+        self.remove_aaaa = remove_aaaa
         
         # Create upstream resolver
         self.upstream_resolver = client.Resolver(
@@ -211,7 +212,7 @@ class DNSProxyResolver:
                 logger.debug(f"  Additional: {len(response.additional)} records")
                 
                 # For A record queries, do CNAME flattening
-                if query_type == dns.A:
+                if query_type == dns.A or query_type == dns.AAAA:
                     # Check if we have any CNAME records in ANY section
                     cname_in_answers = [rr for rr in response.answers if rr.type == dns.CNAME]
                     cname_in_authority = [rr for rr in response.authority if rr.type == dns.CNAME]
@@ -224,11 +225,16 @@ class DNSProxyResolver:
                         
                         # Find A records that are final results of the CNAME chain
                         a_records_from_chain = [rr for rr in response.answers if rr.type == dns.A]
+                        aaaa_records_from_chain = [rr for rr in response.answers if rr.type == dns.AAAA]
                         
-                        if a_records_from_chain:
+                        if a_records_from_chain or aaaa_records_from_chain:
                             # Create flattened A records pointing to original query name
                             flattened_records = []
                             for a_rr in a_records_from_chain:
+                                # ✅ SAFETY CHECK: Skip if not actually an A record
+                                if a_rr.type != dns.A:
+                                  logger.debug(f"Skipping non-A record: {a_rr.type}")
+                                  continue
                                 new_a_record = dns.RRHeader(
                                     name=query_name,
                                     type=dns.A,
@@ -237,10 +243,27 @@ class DNSProxyResolver:
                                     payload=a_rr.payload
                                 )
                                 flattened_records.append(new_a_record)
-                                logger.debug(f"Flattened: {query_name} -> {a_rr.payload.dottedQuad()}")
+                                logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
+
+                            # ✅ Process AAAA records (IPv6) if not removing them
+                            if not self.remove_aaaa:
+                                for aaaa_rr in aaaa_records_from_chain:
+                                    new_aaaa_record = dns.RRHeader(
+                                        name=query_name,
+                                        type=dns.AAAA,  # ✅ AAAA type with AAAA payload
+                                        cls=dns.IN,
+                                        ttl=aaaa_rr.ttl,
+                                        payload=aaaa_rr.payload
+                                    )
+                                    flattened_records.append(new_aaaa_record)
+                                    logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
                             
-                            # COMPLETELY REPLACE the entire response with ONLY our flattened A records
-                            response.answers = flattened_records
+                            # Build new response: start with flattened A records
+                            new_answers = flattened_records[:]
+                            
+                            
+                            # Replace response with flattened records (A + optionally AAAA)
+                            response.answers = new_answers
                             response.authority = []  # Clear authority section completely
                             response.additional = []  # Clear additional section completely
                             
@@ -252,17 +275,42 @@ class DNSProxyResolver:
                             response.authority = []
                             response.additional = []
                     else:
-                        # No CNAMEs, just remove AAAA records from all sections
-                        logger.debug(f"No CNAMEs found for {query_name}, removing AAAA records only")
+                        # No CNAMEs, conditionally remove AAAA records from all sections
+                        if self.remove_aaaa:
+                            logger.debug(f"No CNAMEs found for {query_name}, removing AAAA records only")
+                            response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
+                            response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+                            response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+                        else:
+                            logger.debug(f"No CNAMEs found for {query_name}, keeping IPv6 records")
+                            
+                else:
+                    # For non-A queries, conditionally remove AAAA and CNAME records from all sections  
+                    logger.debug(f"Non-A query for {query_name}")
+                    
+                    # Always remove CNAMEs for non-A queries (they don't make sense)
+                    cname_count = (len([rr for rr in response.answers if rr.type == dns.CNAME]) +
+                                 len([rr for rr in response.authority if rr.type == dns.CNAME]) +
+                                 len([rr for rr in response.additional if rr.type == dns.CNAME]))
+                    
+                    response.answers = [rr for rr in response.answers if rr.type != dns.CNAME]
+                    response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
+                    response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
+                    
+                    # Conditionally remove AAAA records
+                    if self.remove_aaaa:
+                        aaaa_count = (len([rr for rr in response.answers if rr.type == dns.AAAA]) +
+                                    len([rr for rr in response.authority if rr.type == dns.AAAA]) +
+                                    len([rr for rr in response.additional if rr.type == dns.AAAA]))
+                        
                         response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
                         response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
                         response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
-                else:
-                    # For non-A queries, remove AAAA and CNAME records from all sections
-                    logger.debug(f"Non-A query for {query_name}, removing AAAA and CNAME records")
-                    response.answers = [rr for rr in response.answers if rr.type not in (dns.AAAA, dns.CNAME)]
-                    response.authority = [rr for rr in response.authority if rr.type not in (dns.AAAA, dns.CNAME)]
-                    response.additional = [rr for rr in response.additional if rr.type not in (dns.AAAA, dns.CNAME)]
+                        
+                        if aaaa_count > 0:
+                            logger.debug(f"Removed {aaaa_count} AAAA records from non-A query (IPv6 removal enabled)")
+                    else:
+                        logger.debug("IPv6 removal disabled - keeping AAAA records for non-A query")
                 
                 # Final debug: Log what we're returning
                 logger.debug(f"Final response for {query_name}:")
@@ -281,9 +329,15 @@ class DNSProxyResolver:
                 response.answers = []
                 response.authority = list(authority)
                 response.additional = list(additional)
-                # Remove AAAA and CNAME from authority/additional even in empty responses
-                response.authority = [rr for rr in response.authority if rr.type not in (dns.AAAA, dns.CNAME)]
-                response.additional = [rr for rr in response.additional if rr.type not in (dns.AAAA, dns.CNAME)]
+                
+                # Conditionally remove AAAA and CNAME from authority/additional even in empty responses
+                response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
+                response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
+                
+                if self.remove_aaaa:
+                    response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+                    response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+                
                 self.cache.set(cache_key, response, ttl=60)
                 defer.returnValue(response)
                 
