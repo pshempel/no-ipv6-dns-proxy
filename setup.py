@@ -22,8 +22,8 @@ setup(
     long_description=read_readme(),
     long_description_content_type='text/markdown',
     author='DNS Proxy Team',
-    author_email='admin@example.com',
-    url='https://github.com/example/dns-proxy',
+    author_email='pshempel@linuxsrc.com',
+    url='https://github.com/pshempel/dns-proxy',
     
     packages=find_packages(),
     include_package_data=True,
