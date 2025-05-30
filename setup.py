@@ -17,7 +17,7 @@ def read_requirements():
 
 setup(
     name='dns-proxy',
-    version='1.0.0',
+    version='1.1.0',
     description='DNS CNAME Flattening Proxy',
     long_description=read_readme(),
     long_description_content_type='text/markdown',
