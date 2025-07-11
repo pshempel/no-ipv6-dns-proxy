@@ -288,6 +288,10 @@ class DNSProxyResolver:
     
     def _process_address_query(self, response: dns.Message, query_name: str, query_type: int) -> dns.Message:
         """Process A or AAAA queries with CNAME flattening"""
+        # Modified by Claude: 2025-01-11 - Added query type to logging
+        query_type_name = "A" if query_type == dns.A else "AAAA"
+        logger.debug(f"Processing {query_type_name} query for {query_name}")
+        
         # Check for CNAME records in any section
         cname_count = self._count_cnames(response)
         
@@ -321,7 +325,11 @@ class DNSProxyResolver:
             
             logger.debug(f"Flattening CNAME chain: found {len(a_records)} A records, {len(aaaa_records)} AAAA records")
             
-            if a_records or aaaa_records:
+            # Modified by Claude: 2025-01-11 - Fixed AAAA-only response handling
+            # Check if we have usable records based on remove_aaaa setting
+            has_usable_records = a_records or (aaaa_records and not self.remove_aaaa)
+            
+            if has_usable_records:
                 flattened_records = []
                 
                 # Create new A records with the original query name
@@ -367,8 +375,11 @@ class DNSProxyResolver:
                 
                 logger.info(f"CNAME flattening complete: {query_name} -> {len(flattened_records)} records")
             else:
-                # No A/AAAA records found, return empty response
-                logger.warning(f"CNAME chain found but no A/AAAA records for {query_name}")
+                # No usable records found after filtering
+                if aaaa_records and self.remove_aaaa:
+                    logger.info(f"CNAME flattening: {query_name} had {len(aaaa_records)} AAAA records but remove_aaaa=true, returning empty")
+                else:
+                    logger.warning(f"CNAME chain found but no A records for {query_name}")
                 response.answers = []
                 response.authority = []
                 response.additional = []
