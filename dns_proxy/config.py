@@ -89,3 +89,73 @@ class DNSProxyConfig:
             return self.config.getboolean(section, option)
         except (configparser.NoSectionError, configparser.NoOptionError, ValueError):
             return fallback
+    
+    def get_upstream_servers(self) -> list:
+        """Get list of upstream DNS servers with ports
+        
+        Supports multiple formats:
+        - Comma-separated list: "1.1.1.1,8.8.8.8,9.9.9.9"
+        - With ports: "1.1.1.1:53,8.8.8.8:53,192.168.1.1:5353"
+        - IPv6: "[2606:4700:4700::1111],[2001:4860:4860::8888]"
+        - IPv6 with ports: "[2606:4700:4700::1111]:53,[2001:4860:4860::8888]:53"
+        - Mixed: "1.1.1.1,8.8.8.8,[2606:4700:4700::1111]:53"
+        
+        Falls back to single server format for backward compatibility.
+        
+        Returns:
+            List of (host, port) tuples
+        """
+        servers = []
+        
+        # Try new comma-separated format first
+        server_addresses = self.get('forwarder-dns', 'server-addresses')
+        if server_addresses:
+            # Get default port for servers without explicit port
+            default_port = self.getint('forwarder-dns', 'server-port', 53)
+            
+            # Split by comma and process each server
+            for server_spec in server_addresses.split(','):
+                server_spec = server_spec.strip()
+                if not server_spec:
+                    continue
+                    
+                # Parse server and port
+                # IPv6 with port: [2606:4700:4700::1111]:53
+                if server_spec.startswith('[') and ']:' in server_spec:
+                    bracket_end = server_spec.index(']')
+                    host = server_spec[1:bracket_end]
+                    port_str = server_spec[bracket_end+2:]
+                    try:
+                        port = int(port_str)
+                    except ValueError:
+                        logging.warning(f"Invalid port '{port_str}' for server '{host}', using default {default_port}")
+                        port = default_port
+                    servers.append((host, port))
+                
+                # IPv6 without port: [2606:4700:4700::1111]
+                elif server_spec.startswith('[') and server_spec.endswith(']'):
+                    host = server_spec[1:-1]
+                    servers.append((host, default_port))
+                
+                # IPv4 with port: 1.1.1.1:53
+                elif ':' in server_spec and not server_spec.startswith('['):
+                    parts = server_spec.rsplit(':', 1)
+                    host = parts[0]
+                    try:
+                        port = int(parts[1])
+                    except ValueError:
+                        logging.warning(f"Invalid port '{parts[1]}' for server '{host}', using default {default_port}")
+                        port = default_port
+                    servers.append((host, port))
+                
+                # IPv4 or IPv6 without port
+                else:
+                    servers.append((server_spec, default_port))
+        
+        # Fall back to old single server format
+        if not servers:
+            server_address = self.get('forwarder-dns', 'server-address', '8.8.8.8')
+            server_port = self.getint('forwarder-dns', 'server-port', 53)
+            servers.append((server_address, server_port))
+        
+        return servers

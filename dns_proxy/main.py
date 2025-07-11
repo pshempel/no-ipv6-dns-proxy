@@ -346,10 +346,38 @@ def _get_logging_config(config, args):
 
 def _get_resolver_config(config, args):
     """Get resolver configuration from config and args"""
+    # Modified by Claude: 2025-01-11 - Added support for multiple upstream DNS servers
     listen_port = args.port or config.getint('dns-proxy', 'listen-port', 53)
     listen_address = args.address or config.get('dns-proxy', 'listen-address', '0.0.0.0')
-    upstream_server = args.upstream or config.get('forwarder-dns', 'server-address', '8.8.8.8')
-    upstream_port = config.getint('forwarder-dns', 'server-port', 53)
+    
+    # Get upstream servers using the new method
+    upstream_servers = config.get_upstream_servers()
+    
+    # Handle command-line override (single server)
+    if args.upstream:
+        # Parse command line server, replacing the configured servers
+        if ':' in args.upstream and not args.upstream.startswith('['):
+            # IPv4 with port
+            host, port = args.upstream.rsplit(':', 1)
+            try:
+                port = int(port)
+            except ValueError:
+                port = 53
+            upstream_servers = [(host, port)]
+        elif args.upstream.startswith('[') and ']:' in args.upstream:
+            # IPv6 with port
+            bracket_end = args.upstream.index(']')
+            host = args.upstream[1:bracket_end]
+            port_str = args.upstream[bracket_end+2:]
+            try:
+                port = int(port_str)
+            except ValueError:
+                port = 53
+            upstream_servers = [(host, port)]
+        else:
+            # No port specified, use default
+            upstream_servers = [(args.upstream, 53)]
+    
     max_recursion = config.getint('cname-flattener', 'max-recursion', 1000)
     remove_aaaa = config.getboolean('cname-flattener', 'remove-aaaa', True)
     cache_max_size = config.getint('cache', 'max-size', 10000)
@@ -358,8 +386,7 @@ def _get_resolver_config(config, args):
     return {
         'listen_port': listen_port,
         'listen_address': listen_address,
-        'upstream_server': upstream_server,
-        'upstream_port': upstream_port,
+        'upstream_servers': upstream_servers,  # Now a list of (host, port) tuples
         'max_recursion': max_recursion,
         'remove_aaaa': remove_aaaa,
         'cache_max_size': cache_max_size,
@@ -369,13 +396,16 @@ def _get_resolver_config(config, args):
 
 def _validate_config(resolver_config, logger):
     """Validate configuration and log settings"""
-    if not resolver_config['upstream_server']:
-        logger.error("No upstream DNS server configured")
+    # Modified by Claude: 2025-01-11 - Updated to handle multiple upstream servers
+    if not resolver_config['upstream_servers']:
+        logger.error("No upstream DNS servers configured")
         sys.exit(1)
     
     logger.info(f"Configuration loaded:")
     logger.info(f"  Listen: {resolver_config['listen_address']}:{resolver_config['listen_port']}")
-    logger.info(f"  Upstream: {resolver_config['upstream_server']}:{resolver_config['upstream_port']}")
+    logger.info(f"  Upstream servers:")
+    for host, port in resolver_config['upstream_servers']:
+        logger.info(f"    - {host}:{port}")
     logger.info(f"  Max CNAME recursion: {resolver_config['max_recursion']}")
     logger.info(f"  IPv6 removal: {'enabled' if resolver_config['remove_aaaa'] else 'disabled'}")
     logger.info(f"  Cache size: {resolver_config['cache_max_size']}")
@@ -383,6 +413,7 @@ def _validate_config(resolver_config, logger):
 
 def _initialize_resolver(resolver_config):
     """Initialize DNS resolver components"""
+    # Modified by Claude: 2025-01-11 - Updated to pass multiple upstream servers
     from dns_proxy.dns_resolver import DNSProxyResolver, DNSProxyProtocol
     from dns_proxy.cache import DNSCache
     
@@ -392,8 +423,7 @@ def _initialize_resolver(resolver_config):
     )
     
     resolver = DNSProxyResolver(
-        upstream_server=resolver_config['upstream_server'],
-        upstream_port=resolver_config['upstream_port'],
+        upstream_servers=resolver_config['upstream_servers'],  # Now passing list of servers
         max_recursion=resolver_config['max_recursion'],
         cache=cache,
         remove_aaaa=resolver_config['remove_aaaa']

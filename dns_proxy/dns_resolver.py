@@ -157,16 +157,35 @@ class CNAMEFlattener:
 class DNSProxyResolver:
     """Main DNS resolver with CNAME flattening"""
     
-    def __init__(self, upstream_server: str, upstream_port: int = DNS_DEFAULT_PORT, 
+    def __init__(self, upstream_servers: List[Tuple[str, int]], 
                  max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
-        self.upstream_server = upstream_server
-        self.upstream_port = upstream_port
+        """Initialize DNS resolver with support for multiple upstream servers
+        
+        Args:
+            upstream_servers: List of (host, port) tuples for upstream DNS servers
+            max_recursion: Maximum CNAME recursion depth
+            cache: DNS cache instance
+            remove_aaaa: Whether to filter AAAA records
+        """
+        # Modified by Claude: 2025-01-11 - Added support for multiple upstream DNS servers
+        self.upstream_servers = upstream_servers
         self.cache = cache or DNSCache()
         self.remove_aaaa = remove_aaaa
         
-        # Create upstream resolver
+        # Store primary server for logging/metrics (first server in list)
+        if upstream_servers:
+            self.upstream_server = upstream_servers[0][0]
+            self.upstream_port = upstream_servers[0][1]
+        else:
+            # Fallback if no servers provided
+            self.upstream_server = "8.8.8.8"
+            self.upstream_port = DNS_DEFAULT_PORT
+            logger.error("No upstream servers provided, using fallback 8.8.8.8")
+        
+        # Create upstream resolver with multiple servers
+        # Twisted's client.Resolver automatically handles round-robin and failover
         self.upstream_resolver = client.Resolver(
-            servers=[(upstream_server, upstream_port)],
+            servers=upstream_servers,  # Now accepts full list
             timeout=(DNS_QUERY_TIMEOUT,)
         )
         
