@@ -1,3 +1,15 @@
+dns-proxy (1.2.1-1) bookworm; urgency=medium
+
+  * FIXED: PID file permission issue after privilege drop
+    - Changed PID file path to /var/run/dns-proxy/dns-proxy.pid
+    - Added ExecStartPre to create PID directory with correct ownership
+    - Added tmpfiles.d configuration for persistent PID directory
+  * IMPROVED: Systemd service robustness
+    - Updated ReadWritePaths to specifically allow /var/run/dns-proxy
+    - Better directory creation and permission handling
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Fri, 11 Jul 2025 11:55:51 -0400
+
 dns-proxy (1.2.0-1) bookworm; urgency=medium
 
   * NEW FEATURE: Multiple upstream DNS servers support
