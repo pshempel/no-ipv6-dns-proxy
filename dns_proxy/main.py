@@ -84,7 +84,7 @@ def _setup_signal_handlers(logger):
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, shutting down...")
         from twisted.internet import reactor
-        reactor.stop()
+        reactor.stop()  # type: ignore[attr-defined]
     
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
@@ -257,6 +257,7 @@ def start_dns_server(config, args, logger, udp_protocol):
     """Start the DNS server with both UDP and TCP support"""
     from dns_proxy.security import remove_pid_file
     from dns_proxy.dns_resolver import DNSTCPFactory
+    # Note: reactor is dynamically typed at runtime, hence the type: ignore comments
     from twisted.internet import reactor
     
     # Get configuration
@@ -283,14 +284,14 @@ def start_dns_server(config, args, logger, udp_protocol):
     
     # Setup security callback
     security_callback = _setup_security_context(config, args, logger)
-    reactor.callWhenRunning(security_callback)
+    reactor.callWhenRunning(security_callback)  # type: ignore[attr-defined]
     
     # Start reactor
     if listen_address == '::':
         logger.info("DNS Proxy started successfully (dual-stack independent of bindv6only)")
     else:
         logger.info("DNS Proxy started successfully (UDP + TCP)")
-    reactor.run()
+    reactor.run()  # type: ignore[attr-defined]
     
     # Cleanup on exit
     pid_file_path = args.pidfile or config.get('dns-proxy', 'pid-file')
