@@ -1,7 +1,3 @@
-# dns_proxy/dns_resolver.py
-# Version: 2.0.0
-# Refactored DNS resolver with smaller, focused functions
-
 import logging
 import socket
 import struct
@@ -51,15 +47,13 @@ class DNSMessage:
         self.message.additional = self.additional
         return self.message
 
-
 class CNAMEFlattener:
     """CNAME flattening resolver"""
     
-    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
+    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None):
         self.upstream_resolver = upstream_resolver
         self.max_recursion = max_recursion
         self.cache = cache or DNSCache()
-        self.remove_aaaa = remove_aaaa
     
     @defer.inlineCallbacks
     def resolve_cname_chain(self, name: str, recursion_count: int = 0) -> List[str]:
@@ -144,48 +138,27 @@ class CNAMEFlattener:
         else:
             logger.warning(f"No A records found after flattening CNAMEs for {original_query_name}")
         
-        # Remove AAAA records if requested
-        if self.remove_aaaa:
-            aaaa_count = len([rr for rr in dns_msg.answers if rr.type == dns.AAAA])
-            dns_msg.remove_aaaa_records()
-            if aaaa_count > 0:
-                logger.debug(f"Removed {aaaa_count} AAAA records for {original_query_name}")
+        # Remove AAAA records as requested
+        aaaa_count = len([rr for rr in dns_msg.answers if rr.type == dns.AAAA])
+        dns_msg.remove_aaaa_records()
+        if aaaa_count > 0:
+            logger.debug(f"Removed {aaaa_count} AAAA records for {original_query_name}")
         
         defer.returnValue(dns_msg)
-
 
 class DNSProxyResolver:
     """Main DNS resolver with CNAME flattening"""
     
-    def __init__(self, upstream_servers: List[Tuple[str, int]], 
+    def __init__(self, upstream_server: str, upstream_port: int = DNS_DEFAULT_PORT, 
                  max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
-        """Initialize DNS resolver with support for multiple upstream servers
-        
-        Args:
-            upstream_servers: List of (host, port) tuples for upstream DNS servers
-            max_recursion: Maximum CNAME recursion depth
-            cache: DNS cache instance
-            remove_aaaa: Whether to filter AAAA records
-        """
-        # Modified by Claude: 2025-01-11 - Added support for multiple upstream DNS servers
-        self.upstream_servers = upstream_servers
+        self.upstream_server = upstream_server
+        self.upstream_port = upstream_port
         self.cache = cache or DNSCache()
         self.remove_aaaa = remove_aaaa
         
-        # Store primary server for logging/metrics (first server in list)
-        if upstream_servers:
-            self.upstream_server = upstream_servers[0][0]
-            self.upstream_port = upstream_servers[0][1]
-        else:
-            # Fallback if no servers provided
-            self.upstream_server = "8.8.8.8"
-            self.upstream_port = DNS_DEFAULT_PORT
-            logger.error("No upstream servers provided, using fallback 8.8.8.8")
-        
-        # Create upstream resolver with multiple servers
-        # Twisted's client.Resolver automatically handles round-robin and failover
+        # Create upstream resolver
         self.upstream_resolver = client.Resolver(
-            servers=upstream_servers,  # Now accepts full list
+            servers=[(upstream_server, upstream_port)],
             timeout=(DNS_QUERY_TIMEOUT,)
         )
         
@@ -193,8 +166,7 @@ class DNSProxyResolver:
         self.cname_flattener = CNAMEFlattener(
             self.upstream_resolver, 
             max_recursion, 
-            self.cache,
-            remove_aaaa
+            self.cache
         )
     
     @defer.inlineCallbacks
@@ -208,256 +180,189 @@ class DNSProxyResolver:
         cache_key = f"{query_name}:{query_type}:{query_class}"
         
         # Check cache first
-        cached_response = self._check_cache(cache_key, query_name)
+        cached_response = self.cache.get(cache_key)
         if cached_response:
+            logger.debug(f"Cache hit for {query_name}")
             defer.returnValue(cached_response)
         
         try:
-            # Forward query to upstream
-            response = yield self._forward_to_upstream(query, query_name)
+            # Forward query to upstream - returns (answers, authority, additional)
+            result = yield self.upstream_resolver.query(query)
+            answers, authority, additional = result
             
-            if response.answers:
-                # Process the response based on query type
-                if query_type in (dns.A, dns.AAAA):
-                    response = self._process_address_query(response, query_name, query_type)
-                else:
-                    response = self._process_non_address_query(response)
+            if answers:
+                # Create a proper DNS message from the tuple result
+                response = dns.Message()
+                response.answers = list(answers)
+                response.authority = list(authority) 
+                response.additional = list(additional)
                 
-                # Cache the successful response
-                self._cache_response(cache_key, response)
+                # Debug: Log what we got from upstream
+                logger.debug(f"Upstream response for {query_name}:")
+                logger.debug(f"  Answers: {len(response.answers)} records")
+                for i, rr in enumerate(response.answers):
+                    try:
+                        if rr.type == dns.CNAME:
+                            target = str(rr.payload.name)
+                            logger.debug(f"    [{i}] CNAME: {rr.name} -> {target} (TTL: {rr.ttl})")
+                        elif rr.type == dns.A:
+                            ip = rr.payload.dottedQuad()
+                            logger.debug(f"    [{i}] A: {rr.name} -> {ip} (TTL: {rr.ttl})")
+                        elif rr.type == dns.AAAA:
+                            logger.debug(f"    [{i}] AAAA: {rr.name} -> {rr.payload} (TTL: {rr.ttl})")
+                        else:
+                            logger.debug(f"    [{i}] {dns.QUERY_TYPES.get(rr.type, rr.type)}: {rr.name} -> {rr.payload} (TTL: {rr.ttl})")
+                    except Exception as e:
+                        logger.debug(f"    [{i}] {dns.QUERY_TYPES.get(rr.type, rr.type)}: {rr.name} (debug error: {e})")
+                
+                logger.debug(f"  Authority: {len(response.authority)} records")
+                logger.debug(f"  Additional: {len(response.additional)} records")
+                
+                # For A record queries, do CNAME flattening
+                if query_type == dns.A or query_type == dns.AAAA:
+                    # Check if we have any CNAME records in ANY section
+                    cname_in_answers = [rr for rr in response.answers if rr.type == dns.CNAME]
+                    cname_in_authority = [rr for rr in response.authority if rr.type == dns.CNAME]
+                    cname_in_additional = [rr for rr in response.additional if rr.type == dns.CNAME]
+                    
+                    total_cnames = len(cname_in_answers) + len(cname_in_authority) + len(cname_in_additional)
+                    
+                    if total_cnames > 0:
+                        logger.debug(f"Found CNAMEs: {len(cname_in_answers)} in answers, {len(cname_in_authority)} in authority, {len(cname_in_additional)} in additional")
+                        
+                        # Find A records that are final results of the CNAME chain
+                        a_records_from_chain = [rr for rr in response.answers if rr.type == dns.A]
+                        aaaa_records_from_chain = [rr for rr in response.answers if rr.type == dns.AAAA]
+                        
+                        if a_records_from_chain or aaaa_records_from_chain:
+                            # Create flattened A records pointing to original query name
+                            flattened_records = []
+                            for a_rr in a_records_from_chain:
+                                # ✅ SAFETY CHECK: Skip if not actually an A record
+                                if a_rr.type != dns.A:
+                                  logger.debug(f"Skipping non-A record: {a_rr.type}")
+                                  continue
+                                new_a_record = dns.RRHeader(
+                                    name=query_name,
+                                    type=dns.A,
+                                    cls=dns.IN,
+                                    ttl=a_rr.ttl,
+                                    payload=a_rr.payload
+                                )
+                                flattened_records.append(new_a_record)
+                                logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
+
+                            # ✅ Process AAAA records (IPv6) if not removing them
+                            if not self.remove_aaaa:
+                                for aaaa_rr in aaaa_records_from_chain:
+                                    new_aaaa_record = dns.RRHeader(
+                                        name=query_name,
+                                        type=dns.AAAA,  # ✅ AAAA type with AAAA payload
+                                        cls=dns.IN,
+                                        ttl=aaaa_rr.ttl,
+                                        payload=aaaa_rr.payload
+                                    )
+                                    flattened_records.append(new_aaaa_record)
+                                    logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
+                            
+                            # Build new response: start with flattened A records
+                            new_answers = flattened_records[:]
+                            
+                            
+                            # Replace response with flattened records (A + optionally AAAA)
+                            response.answers = new_answers
+                            response.authority = []  # Clear authority section completely
+                            response.additional = []  # Clear additional section completely
+                            
+                            logger.info(f"CNAME flattening: {query_name} -> {len(flattened_records)} A records, removed {total_cnames} CNAMEs")
+                        else:
+                            logger.warning(f"Found CNAMEs but no A records for {query_name}")
+                            # Still remove all CNAMEs even if no A records
+                            response.answers = []
+                            response.authority = []
+                            response.additional = []
+                    else:
+                        # No CNAMEs, conditionally remove AAAA records from all sections
+                        if self.remove_aaaa:
+                            logger.debug(f"No CNAMEs found for {query_name}, removing AAAA records only")
+                            response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
+                            response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+                            response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+                        else:
+                            logger.debug(f"No CNAMEs found for {query_name}, keeping IPv6 records")
+                            
+                else:
+                    # For non-A queries, conditionally remove AAAA and CNAME records from all sections  
+                    logger.debug(f"Non-A query for {query_name}")
+                    
+                    # Always remove CNAMEs for non-A queries (they don't make sense)
+                    cname_count = (len([rr for rr in response.answers if rr.type == dns.CNAME]) +
+                                 len([rr for rr in response.authority if rr.type == dns.CNAME]) +
+                                 len([rr for rr in response.additional if rr.type == dns.CNAME]))
+                    
+                    response.answers = [rr for rr in response.answers if rr.type != dns.CNAME]
+                    response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
+                    response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
+                    
+                    # Conditionally remove AAAA records
+                    if self.remove_aaaa:
+                        aaaa_count = (len([rr for rr in response.answers if rr.type == dns.AAAA]) +
+                                    len([rr for rr in response.authority if rr.type == dns.AAAA]) +
+                                    len([rr for rr in response.additional if rr.type == dns.AAAA]))
+                        
+                        response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
+                        response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+                        response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+                        
+                        if aaaa_count > 0:
+                            logger.debug(f"Removed {aaaa_count} AAAA records from non-A query (IPv6 removal enabled)")
+                    else:
+                        logger.debug("IPv6 removal disabled - keeping AAAA records for non-A query")
+                
+                # Final debug: Log what we're returning
+                logger.debug(f"Final response for {query_name}:")
+                logger.debug(f"  Answers: {len(response.answers)} records")
+                logger.debug(f"  Authority: {len(response.authority)} records") 
+                logger.debug(f"  Additional: {len(response.additional)} records")
+                
+                # Cache the result - respect DNS TTLs up to configured maximum
+                if response.answers:
+                    min_ttl = min([rr.ttl for rr in response.answers])
+                    # Cap at configured maximum but respect shorter TTLs
+                    cache_ttl = min(min_ttl, CACHE_MAX_TTL)
+                else:
+                    cache_ttl = CACHE_NEGATIVE_TTL  # Use negative TTL for empty responses
+                
+                self.cache.set(cache_key, response, ttl=cache_ttl)
+                
+                defer.returnValue(response)
             else:
-                # Handle empty response
-                response = self._handle_empty_response(response)
-                self._cache_response(cache_key, response, ttl=CACHE_NEGATIVE_TTL)
-            
-            defer.returnValue(response)
+                # No answers, create empty response
+                response = dns.Message()
+                response.answers = []
+                response.authority = list(authority)
+                response.additional = list(additional)
+                
+                # Conditionally remove AAAA and CNAME from authority/additional even in empty responses
+                response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
+                response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
+                
+                if self.remove_aaaa:
+                    response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+                    response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+                
+                # Cache negative response with appropriate TTL
+                self.cache.set(cache_key, response, ttl=CACHE_NEGATIVE_TTL)
+                defer.returnValue(response)
                 
         except Exception as e:
             logger.error(f"Failed to resolve {query_name}: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            defer.returnValue(self._create_error_response())
-    
-    def _check_cache(self, cache_key: str, query_name: str) -> Optional[dns.Message]:
-        """Check if response is in cache"""
-        cached_response = self.cache.get(cache_key)
-        if cached_response:
-            logger.debug(f"Cache hit for {query_name}")
-            return cached_response
-        return None
-    
-    @defer.inlineCallbacks
-    def _forward_to_upstream(self, query: dns.Query, query_name: str) -> dns.Message:
-        """Forward query to upstream DNS server"""
-        result = yield self.upstream_resolver.query(query)
-        answers, authority, additional = result
-        
-        # Create a proper DNS message from the tuple result
-        response = dns.Message()
-        response.answers = list(answers)
-        response.authority = list(authority) 
-        response.additional = list(additional)
-        
-        if LOG_QUERY_DETAILS:
-            self._log_upstream_response(query_name, response)
-        
-        defer.returnValue(response)
-    
-    def _log_upstream_response(self, query_name: str, response: dns.Message):
-        """Log details of upstream response"""
-        logger.debug(f"Upstream response for {query_name}:")
-        logger.debug(f"  Answers: {len(response.answers)} records")
-        
-        for i, rr in enumerate(response.answers):
-            try:
-                if rr.type == dns.CNAME:
-                    target = str(rr.payload.name)
-                    logger.debug(f"    [{i}] CNAME: {rr.name} -> {target} (TTL: {rr.ttl})")
-                elif rr.type == dns.A:
-                    ip = rr.payload.dottedQuad()
-                    logger.debug(f"    [{i}] A: {rr.name} -> {ip} (TTL: {rr.ttl})")
-                elif rr.type == dns.AAAA:
-                    logger.debug(f"    [{i}] AAAA: {rr.name} -> {rr.payload} (TTL: {rr.ttl})")
-                else:
-                    logger.debug(f"    [{i}] {dns.QUERY_TYPES.get(rr.type, rr.type)}: {rr.name} (TTL: {rr.ttl})")
-            except Exception as e:
-                logger.debug(f"    [{i}] Error logging record: {e}")
-        
-        logger.debug(f"  Authority: {len(response.authority)} records")
-        logger.debug(f"  Additional: {len(response.additional)} records")
-    
-    def _process_address_query(self, response: dns.Message, query_name: str, query_type: int) -> dns.Message:
-        """Process A or AAAA queries with CNAME flattening"""
-        # Modified by Claude: 2025-01-11 - Added query type to logging
-        query_type_name = "A" if query_type == dns.A else "AAAA"
-        logger.debug(f"Processing {query_type_name} query for {query_name}")
-        
-        # Check for CNAME records in any section
-        cname_count = self._count_cnames(response)
-        
-        if cname_count > 0:
-            logger.debug(f"Found {cname_count} total CNAME records for {query_name}")
-            # For responses that already contain the full CNAME chain and A records,
-            # we can flatten them directly without additional queries
-            response = self._flatten_cname_chain(response, query_name)
-        else:
-            # No CNAMEs, just conditionally remove AAAA records
-            if self.remove_aaaa:
-                response = self._remove_aaaa_records(response, query_name)
-            else:
-                logger.debug(f"No CNAMEs found for {query_name}, keeping IPv6 records")
-        
-        return response
-    
-    def _count_cnames(self, response: dns.Message) -> int:
-        """Count CNAME records in all sections"""
-        cname_in_answers = len([rr for rr in response.answers if rr.type == dns.CNAME])
-        cname_in_authority = len([rr for rr in response.authority if rr.type == dns.CNAME])
-        cname_in_additional = len([rr for rr in response.additional if rr.type == dns.CNAME])
-        return cname_in_answers + cname_in_authority + cname_in_additional
-    
-    def _flatten_cname_chain(self, response: dns.Message, query_name: str) -> dns.Message:
-        """Flatten CNAME chain when response already contains both CNAMEs and A/AAAA records"""
-        try:
-            # Extract A and AAAA records from the response
-            a_records = [rr for rr in response.answers if rr.type == dns.A]
-            aaaa_records = [rr for rr in response.answers if rr.type == dns.AAAA]
-            
-            logger.debug(f"Flattening CNAME chain: found {len(a_records)} A records, {len(aaaa_records)} AAAA records")
-            
-            # Modified by Claude: 2025-01-11 - Fixed AAAA-only response handling
-            # Check if we have usable records based on remove_aaaa setting
-            has_usable_records = a_records or (aaaa_records and not self.remove_aaaa)
-            
-            if has_usable_records:
-                flattened_records = []
-                
-                # Create new A records with the original query name
-                for a_rr in a_records:
-                    try:
-                        new_a_record = dns.RRHeader(
-                            name=query_name,
-                            type=dns.A,
-                            cls=dns.IN,
-                            ttl=a_rr.ttl,
-                            payload=a_rr.payload
-                        )
-                        flattened_records.append(new_a_record)
-                        logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
-                    except Exception as e:
-                        logger.error(f"Error flattening A record: {e}")
-                
-                # Handle AAAA records if not removing them
-                if not self.remove_aaaa and aaaa_records:
-                    for aaaa_rr in aaaa_records:
-                        try:
-                            new_aaaa_record = dns.RRHeader(
-                                name=query_name,
-                                type=dns.AAAA,
-                                cls=dns.IN,
-                                ttl=aaaa_rr.ttl,
-                                payload=aaaa_rr.payload
-                            )
-                            flattened_records.append(new_aaaa_record)
-                            # Get IPv6 address string safely
-                            try:
-                                ipv6_addr = socket.inet_ntop(socket.AF_INET6, aaaa_rr.payload._address)
-                                logger.debug(f"Flattened AAAA: {query_name} -> {ipv6_addr}")
-                            except:
-                                logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
-                        except Exception as e:
-                            logger.error(f"Error flattening AAAA record: {e}")
-                
-                # Replace the response with only the flattened records
-                response.answers = flattened_records
-                response.authority = []
-                response.additional = []
-                
-                logger.info(f"CNAME flattening complete: {query_name} -> {len(flattened_records)} records")
-            else:
-                # No usable records found after filtering
-                if aaaa_records and self.remove_aaaa:
-                    logger.info(f"CNAME flattening: {query_name} had {len(aaaa_records)} AAAA records but remove_aaaa=true, returning empty")
-                else:
-                    logger.warning(f"CNAME chain found but no A records for {query_name}")
-                response.answers = []
-                response.authority = []
-                response.additional = []
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error in _flatten_cname_chain: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            # Return empty response on error
-            response.answers = []
-            response.authority = []
-            response.additional = []
-            return response
-    
-    
-    def _process_non_address_query(self, response: dns.Message) -> dns.Message:
-        """Process non-A/AAAA queries"""
-        # Remove CNAMEs (they don't make sense for non-address queries)
-        response.answers = [rr for rr in response.answers if rr.type != dns.CNAME]
-        response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
-        response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
-        
-        # Conditionally remove AAAA records
-        if self.remove_aaaa:
-            response = self._remove_aaaa_records(response, "non-A query")
-        
-        return response
-    
-    def _remove_aaaa_records(self, response: dns.Message, context: str) -> dns.Message:
-        """Remove AAAA records from all sections"""
-        aaaa_count = (
-            len([rr for rr in response.answers if rr.type == dns.AAAA]) +
-            len([rr for rr in response.authority if rr.type == dns.AAAA]) +
-            len([rr for rr in response.additional if rr.type == dns.AAAA])
-        )
-        
-        response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
-        response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
-        response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
-        
-        if aaaa_count > 0:
-            logger.debug(f"Removed {aaaa_count} AAAA records from {context}")
-        
-        return response
-    
-    def _handle_empty_response(self, response: dns.Message) -> dns.Message:
-        """Handle response with no answers"""
-        # Remove CNAMEs and optionally AAAA from authority/additional
-        response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
-        response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
-        
-        if self.remove_aaaa:
-            response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
-            response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
-        
-        return response
-    
-    def _cache_response(self, cache_key: str, response: dns.Message, ttl: Optional[int] = None):
-        """Cache DNS response with appropriate TTL"""
-        if ttl is None:
-            # Calculate TTL from response
-            if response.answers:
-                min_ttl = min([rr.ttl for rr in response.answers])
-                ttl = min(min_ttl, CACHE_MAX_TTL)
-            else:
-                ttl = CACHE_NEGATIVE_TTL
-        
-        self.cache.set(cache_key, response, ttl=ttl)
-        logger.debug(f"Cached response with TTL {ttl}")
-    
-    def _create_error_response(self) -> dns.Message:
-        """Create a SERVFAIL error response"""
-        error_response = dns.Message()
-        error_response.rCode = dns.ESERVER
-        return error_response
-
+            # Return SERVFAIL
+            error_response = dns.Message()
+            error_response.rCode = dns.ESERVER
+            defer.returnValue(error_response)
 
 class DNSProxyProtocol(protocol.DatagramProtocol):
     """UDP DNS proxy protocol"""
@@ -542,7 +447,6 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             self.transport.write(response_data, addr)
         except Exception as e:
             logger.error(f"Failed to send UDP error response to {addr}: {e}")
-
 
 class DNSTCPProtocol(protocol.Protocol):
     """TCP DNS proxy protocol for large responses"""
@@ -646,7 +550,6 @@ class DNSTCPProtocol(protocol.Protocol):
             logger.error(f"Failed to send TCP error response to {self.peer.host}: {e}")
         finally:
             self.transport.loseConnection()
-
 
 class DNSTCPFactory(protocol.Factory):
     """Factory for creating TCP DNS protocol instances"""

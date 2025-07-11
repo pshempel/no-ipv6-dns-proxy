@@ -1,0 +1,24 @@
+dns-proxy (1.2.0-1) bookworm; urgency=medium
+
+  This release introduces support for multiple upstream DNS servers,
+  providing high availability and load distribution for production
+  deployments.
+  
+  Configuration changes:
+  - New 'server-addresses' field accepts comma-separated list of servers
+  - Supports mixed IPv4/IPv6 servers with optional custom ports
+  - Backward compatible - existing single-server configs still work
+  
+  Example configuration:
+    [forwarder-dns]
+    server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]:53
+  
+  Benefits:
+  - Automatic failover if primary DNS server fails
+  - Round-robin load distribution
+  - No single point of failure
+  - Mix internal and external DNS servers
+  
+  See /usr/share/doc/dns-proxy/docs/multiple-dns-servers.md for details.
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Sat, 11 Jan 2025 18:00:00 -0500

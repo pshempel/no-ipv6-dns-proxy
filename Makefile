@@ -2,7 +2,7 @@
 
 # Complete DNS Proxy Makefile with Comprehensive Clean
 PACKAGE_NAME := dns-proxy
-VERSION := 1.1.0
+VERSION := 1.2.1
 
 # Build Debian package
 build-deb: clean

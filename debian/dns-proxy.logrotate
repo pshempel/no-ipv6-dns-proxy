@@ -1,0 +1,13 @@
+/var/log/dns-proxy.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 dns-proxy dns-proxy
+    sharedscripts
+    postrotate
+        /bin/kill -HUP $(cat /var/run/dns-proxy.pid 2>/dev/null) 2>/dev/null || true
+    endscript
+}

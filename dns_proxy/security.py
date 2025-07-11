@@ -34,8 +34,20 @@ def drop_privileges(user: str, group: str):
         sys.exit(1)
 
 def create_pid_file(pid_file: str):
-    """Create PID file"""
+    """Create PID file with directory validation"""
     try:
+        # Ensure directory exists
+        pid_dir = os.path.dirname(pid_file)
+        if pid_dir and not os.path.exists(pid_dir):
+            # Modified by Claude: 2025-01-11 - Added directory creation with validation
+            try:
+                os.makedirs(pid_dir, mode=0o755)
+                logger.info(f"Created PID directory: {pid_dir}")
+            except OSError as e:
+                logger.error(f"Failed to create PID directory {pid_dir}: {e}")
+                raise
+        
+        # Create the PID file
         with open(pid_file, 'w') as f:
             f.write(str(os.getpid()))
         logger.info(f"PID file created: {pid_file}")

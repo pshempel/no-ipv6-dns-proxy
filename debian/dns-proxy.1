@@ -1,0 +1,203 @@
+.TH DNS-PROXY 1 "January 2025" "dns-proxy 1.2.1" "User Commands"
+.SH NAME
+dns-proxy \- High-performance DNS CNAME flattening proxy with configurable IPv6 handling
+.SH SYNOPSIS
+.B dns-proxy
+[\fI\,OPTIONS\/\fR]
+.SH DESCRIPTION
+.PP
+DNS Proxy is a high-performance DNS proxy that flattens CNAME records to A records,
+with configurable IPv6 record handling, and provides intelligent caching. Built with
+Twisted for maximum performance and reliability. Supports multiple upstream DNS servers
+for high availability and load distribution.
+.PP
+The service can operate in two modes:
+.TP
+\(bu IPv4-only mode: Strips all AAAA records from DNS responses
+.TP
+\(bu Dual-stack mode: Preserves IPv6 records while performing CNAME flattening
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIFILE\fR
+Path to configuration file (default: /etc/dns-proxy/dns-proxy.cfg)
+.TP
+.BR \-d ", " \-\-daemonize
+Run as daemon (default is to run in foreground)
+.TP
+.BR \-l ", " \-\-logfile " " \fIFILE\fR
+Log file path (overrides config)
+.TP
+.BR \-L ", " \-\-loglevel " " \fILEVEL\fR
+Set log level: DEBUG, INFO, WARNING, ERROR
+.TP
+.BR \-\-port " " \fIPORT\fR
+Override listen port from configuration
+.TP
+.BR \-\-upstream " " \fISERVER\fR
+Override upstream DNS server (replaces ALL configured servers).
+Format: IP[:PORT] or [IPv6]:PORT.
+Examples: 1.1.1.1, 8.8.8.8:53, [2606:4700:4700::1111]:53
+.TP
+.BR \-h ", " \-\-help
+Show help message and exit
+.TP
+.BR \-v ", " \-\-version
+Show version information and exit
+.SH CONFIGURATION
+.PP
+The main configuration file is located at \fB/etc/dns-proxy/dns-proxy.cfg\fR
+.PP
+Key configuration sections:
+.TP
+.B [dns-proxy]
+Main service configuration (listen address, port, user/group)
+.TP
+.B [forwarder-dns]
+Upstream DNS server settings. Supports multiple servers:
+.br
+server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]
+.TP
+.B [cname-flattener]
+CNAME flattening options and IPv6 handling
+.TP
+.B [cache]
+Cache size and TTL settings
+.TP
+.B [log-file]
+Logging configuration
+.SH EXAMPLES
+.PP
+Run dns-proxy with default configuration:
+.PP
+.nf
+dns-proxy
+.fi
+.PP
+Run with debug logging:
+.PP
+.nf
+dns-proxy -L DEBUG
+.fi
+.PP
+Use custom configuration and upstream server:
+.PP
+.nf
+dns-proxy -c /path/to/custom.cfg --upstream 1.1.1.1:53
+.fi
+.PP
+Configure multiple upstream servers in config:
+.PP
+.nf
+[forwarder-dns]
+server-addresses = 1.1.1.1,1.0.0.1,8.8.8.8,[2606:4700:4700::1111]
+.fi
+.PP
+Test DNS queries:
+.PP
+.nf
+dig @localhost example.com
+dig @localhost -p 53 +tcp google.com
+.fi
+.SH FILES
+.TP
+.I /etc/dns-proxy/dns-proxy.cfg
+Main configuration file
+.TP
+.I /var/log/dns-proxy.log
+Log file (when file logging is enabled)
+.TP
+.I /var/run/dns-proxy.pid
+PID file for the running daemon
+.TP
+.I /lib/systemd/system/dns-proxy.service
+Systemd service unit file
+.SH SYSTEMD INTEGRATION
+.PP
+Control the service using systemctl:
+.PP
+.nf
+systemctl start dns-proxy
+systemctl stop dns-proxy
+systemctl restart dns-proxy
+systemctl status dns-proxy
+.fi
+.PP
+Enable automatic startup:
+.PP
+.nf
+systemctl enable dns-proxy
+.fi
+.SH MULTIPLE DNS SERVERS
+.PP
+DNS Proxy supports configuring multiple upstream DNS servers for high availability
+and load distribution. When multiple servers are configured:
+.TP
+\(bu Queries are distributed using round-robin
+.TP
+\(bu Automatic failover to next server on failure
+.TP
+\(bu Supports mixed IPv4 and IPv6 servers
+.TP
+\(bu Custom ports per server are supported
+.PP
+Configuration example:
+.PP
+.nf
+[forwarder-dns]
+# Comma-separated list with optional ports
+server-addresses = 1.1.1.1,8.8.8.8:53,[2606:4700:4700::1111]:53,192.168.1.1:5353
+.fi
+.SH PERFORMANCE
+.PP
+DNS Proxy is capable of handling 500-1000+ queries per second on modern hardware.
+Performance features include:
+.TP
+\(bu Asynchronous I/O using Twisted framework
+.TP
+\(bu Intelligent TTL-aware caching
+.TP
+\(bu Efficient CNAME flattening algorithm
+.TP
+\(bu Support for both UDP and TCP queries
+.SH SECURITY
+.PP
+Security features include:
+.TP
+\(bu Privilege dropping after binding to port 53
+.TP
+\(bu Systemd security hardening (when run as service)
+.TP
+\(bu Input validation and sanitization
+.TP
+\(bu Configurable recursion limits
+.SH TROUBLESHOOTING
+.PP
+Check service status:
+.PP
+.nf
+systemctl status dns-proxy
+journalctl -u dns-proxy -f
+.fi
+.PP
+Common issues:
+.TP
+.B Port 53 already in use
+Stop systemd-resolved or configure it to not use port 53
+.TP
+.B Permission denied
+Ensure the service is started as root (it drops privileges after binding)
+.TP
+.B SERVFAIL responses
+Check upstream DNS server connectivity and configuration
+.SH SEE ALSO
+.BR dig (1),
+.BR host (1),
+.BR systemctl (1),
+.BR journalctl (1)
+.SH AUTHOR
+Written by the DNS Proxy Team.
+.SH REPORTING BUGS
+Report bugs to: https://github.com/pshempel/dns-proxy/issues
+.SH COPYRIGHT
+Copyright \(co 2025 Philip S. Hempel.
+License: MIT

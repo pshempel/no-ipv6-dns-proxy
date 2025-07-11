@@ -1,3 +1,62 @@
+dns-proxy (1.2.1-1) bookworm; urgency=medium
+
+  * FIXED: PID file permission issue after privilege drop
+    - Changed PID file path to /var/run/dns-proxy/dns-proxy.pid
+    - Added ExecStartPre to create PID directory with correct ownership
+    - Added tmpfiles.d configuration for persistent PID directory
+  * IMPROVED: Systemd service robustness
+    - Updated ReadWritePaths to specifically allow /var/run/dns-proxy
+    - Better directory creation and permission handling
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Fri, 11 Jul 2025 11:55:51 -0400
+
+dns-proxy (1.2.0-1) bookworm; urgency=medium
+
+  * NEW FEATURE: Multiple upstream DNS servers support
+    - ADDED: Comma-separated server list configuration (server-addresses)
+    - ADDED: Support for mixed IPv4/IPv6 servers with optional custom ports
+    - ADDED: Automatic round-robin distribution and failover
+    - MAINTAINED: Full backward compatibility with single server format
+  * Configuration enhancements:
+    - NEW: server-addresses field supports formats like:
+      - IPv4: 1.1.1.1,8.8.8.8,9.9.9.9
+      - IPv6: [2606:4700:4700::1111],[2001:4860:4860::8888]
+      - Mixed with ports: 1.1.1.1:53,192.168.1.1:5353,[::1]:53
+    - IMPROVED: Command-line --upstream now clearly overrides ALL servers
+  * Documentation updates:
+    - UPDATED: Man page with new MULTIPLE DNS SERVERS section
+    - UPDATED: --help text with clear format examples
+    - ADDED: Comprehensive documentation in docs/multiple-dns-servers.md
+    - UPDATED: Example configurations showing multi-server setup
+  * Benefits for production deployments:
+    - High availability with no single point of failure
+    - Load distribution across multiple providers
+    - Mix internal and external DNS servers
+    - Better geographic distribution for latency
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Sat, 11 Jan 2025 18:00:00 -0500
+
+dns-proxy (1.1.1-1) bookworm; urgency=medium
+
+  * Cache system improvements and bug fixes:
+    - FIXED: Cache key generation now includes query class (prevents collisions)
+    - FIXED: TTL handling respects DNS TTLs up to 24 hours (was capped at 300s)
+    - FIXED: Cache cleanup no longer runs on every get() (major performance boost)
+    - ADDED: Negative caching for NXDOMAIN responses
+  * Code quality improvements:
+    - REFACTORED: All large functions split into focused helpers (<50 lines each)
+    - ADDED: Comprehensive constants.py for all hardcoded values
+    - IMPROVED: Better error handling and logging throughout
+  * Development enhancements:
+    - ADDED: Test scripts for running from repository without installation
+    - ADDED: Multiple test configurations for different scenarios
+    - ADDED: Comprehensive testing documentation
+  * Configuration improvements:
+    - IDENTIFIED: Multiple DNS server support possible (future enhancement)
+    - IMPROVED: Configuration documentation and examples
+
+ -- Philip S. Hempel <pshempel@linuxsr.com>  Sat, 11 Jan 2025 12:00:00 -0500
+
 dns-proxy (1.1.0-1) bookworm; urgency=medium
 
   * Major bug fixes and feature improvements

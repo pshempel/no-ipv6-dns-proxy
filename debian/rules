@@ -9,6 +9,10 @@ override_dh_auto_install:
 	install -D -m 644 dns-proxy.service debian/dns-proxy/lib/systemd/system/dns-proxy.service
 	# Install configuration file
 	install -D -m 644 dns-proxy.cfg debian/dns-proxy/etc/dns-proxy/dns-proxy.cfg
+	# Install logrotate configuration
+	install -D -m 644 debian/dns-proxy.logrotate debian/dns-proxy/etc/logrotate.d/dns-proxy
+	# Install man page
+	install -D -m 644 debian/dns-proxy.1 debian/dns-proxy/usr/share/man/man1/dns-proxy.1
 
 override_dh_installsystemd:
 	dh_installsystemd --name=dns-proxy

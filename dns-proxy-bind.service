@@ -1,0 +1,38 @@
+[Unit]
+Description=DNS CNAME Flattening Proxy for BIND Forward Zones
+After=network-online.target
+Wants=network-online.target
+Before=bind9.service named.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Create required directories and files
+ExecStartPre=/bin/sh -c 'mkdir -p /var/run /var/log'
+ExecStartPre=/bin/sh -c 'test -f /etc/dns-proxy/dns-proxy-bind.cfg || exit 1'
+
+# Start the proxy on port 54
+ExecStart=/usr/bin/dns-proxy --config /etc/dns-proxy/dns-proxy-bind.cfg
+
+# Restart on failure
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log /var/run
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dns-proxy-bind
+
+[Install]
+WantedBy=multi-user.target
