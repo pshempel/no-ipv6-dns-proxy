@@ -32,6 +32,16 @@ jobs:
         # Basic syntax check
         python -m py_compile dns_proxy/*.py
         
+    - name: Run Pylint
+      run: |
+        pip install pylint
+        pylint dns_proxy/ --exit-zero --reports=y || echo "Pylint warnings found"
+        
+    - name: Run type checking
+      run: |
+        pip install mypy types-twisted
+        mypy dns_proxy/ --ignore-missing-imports || echo "Type checking completed with warnings"
+        
     - name: Run unit tests
       run: |
         pytest tests/unit/ -v || echo "Note: Unit tests directory may be empty"
