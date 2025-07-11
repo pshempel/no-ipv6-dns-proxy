@@ -296,57 +296,76 @@ class DNSProxyResolver:
     
     def _flatten_cname_chain(self, response: dns.Message, query_name: str) -> dns.Message:
         """Flatten CNAME chain when response already contains both CNAMEs and A/AAAA records"""
-        # Extract A and AAAA records from the response
-        a_records = [rr for rr in response.answers if rr.type == dns.A]
-        aaaa_records = [rr for rr in response.answers if rr.type == dns.AAAA]
-        
-        if a_records or aaaa_records:
-            flattened_records = []
+        try:
+            # Extract A and AAAA records from the response
+            a_records = [rr for rr in response.answers if rr.type == dns.A]
+            aaaa_records = [rr for rr in response.answers if rr.type == dns.AAAA]
             
-            # Create new A records with the original query name
-            for a_rr in a_records:
-                new_a_record = dns.RRHeader(
-                    name=query_name,
-                    type=dns.A,
-                    cls=dns.IN,
-                    ttl=a_rr.ttl,
-                    payload=a_rr.payload
-                )
-                flattened_records.append(new_a_record)
-                logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
+            logger.debug(f"Flattening CNAME chain: found {len(a_records)} A records, {len(aaaa_records)} AAAA records")
             
-            # Handle AAAA records if not removing them
-            if not self.remove_aaaa and aaaa_records:
-                for aaaa_rr in aaaa_records:
-                    new_aaaa_record = dns.RRHeader(
-                        name=query_name,
-                        type=dns.AAAA,
-                        cls=dns.IN,
-                        ttl=aaaa_rr.ttl,
-                        payload=aaaa_rr.payload
-                    )
-                    flattened_records.append(new_aaaa_record)
-                    # Get IPv6 address string safely
+            if a_records or aaaa_records:
+                flattened_records = []
+                
+                # Create new A records with the original query name
+                for a_rr in a_records:
                     try:
-                        ipv6_addr = socket.inet_ntop(socket.AF_INET6, aaaa_rr.payload._address)
-                        logger.debug(f"Flattened AAAA: {query_name} -> {ipv6_addr}")
-                    except:
-                        logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
+                        new_a_record = dns.RRHeader(
+                            name=query_name,
+                            type=dns.A,
+                            cls=dns.IN,
+                            ttl=a_rr.ttl,
+                            payload=a_rr.payload
+                        )
+                        flattened_records.append(new_a_record)
+                        logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
+                    except Exception as e:
+                        logger.error(f"Error flattening A record: {e}")
+                
+                # Handle AAAA records if not removing them
+                if not self.remove_aaaa and aaaa_records:
+                    for aaaa_rr in aaaa_records:
+                        try:
+                            new_aaaa_record = dns.RRHeader(
+                                name=query_name,
+                                type=dns.AAAA,
+                                cls=dns.IN,
+                                ttl=aaaa_rr.ttl,
+                                payload=aaaa_rr.payload
+                            )
+                            flattened_records.append(new_aaaa_record)
+                            # Get IPv6 address string safely
+                            try:
+                                ipv6_addr = socket.inet_ntop(socket.AF_INET6, aaaa_rr.payload._address)
+                                logger.debug(f"Flattened AAAA: {query_name} -> {ipv6_addr}")
+                            except:
+                                logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
+                        except Exception as e:
+                            logger.error(f"Error flattening AAAA record: {e}")
+                
+                # Replace the response with only the flattened records
+                response.answers = flattened_records
+                response.authority = []
+                response.additional = []
+                
+                logger.info(f"CNAME flattening complete: {query_name} -> {len(flattened_records)} records")
+            else:
+                # No A/AAAA records found, return empty response
+                logger.warning(f"CNAME chain found but no A/AAAA records for {query_name}")
+                response.answers = []
+                response.authority = []
+                response.additional = []
             
-            # Replace the response with only the flattened records
-            response.answers = flattened_records
-            response.authority = []
-            response.additional = []
+            return response
             
-            logger.info(f"CNAME flattening complete: {query_name} -> {len(flattened_records)} records")
-        else:
-            # No A/AAAA records found, return empty response
-            logger.warning(f"CNAME chain found but no A/AAAA records for {query_name}")
+        except Exception as e:
+            logger.error(f"Error in _flatten_cname_chain: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Return empty response on error
             response.answers = []
             response.authority = []
             response.additional = []
-        
-        return response
+            return response
     
     
     def _process_non_address_query(self, response: dns.Message) -> dns.Message:
