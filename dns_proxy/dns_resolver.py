@@ -200,7 +200,7 @@ class DNSProxyResolver:
             if response.answers:
                 # Process the response based on query type
                 if query_type in (dns.A, dns.AAAA):
-                    response = yield self._process_address_query(response, query_name, query_type)
+                    response = self._process_address_query(response, query_name, query_type)
                 else:
                     response = self._process_non_address_query(response)
                 
@@ -267,7 +267,6 @@ class DNSProxyResolver:
         logger.debug(f"  Authority: {len(response.authority)} records")
         logger.debug(f"  Additional: {len(response.additional)} records")
     
-    @defer.inlineCallbacks
     def _process_address_query(self, response: dns.Message, query_name: str, query_type: int) -> dns.Message:
         """Process A or AAAA queries with CNAME flattening"""
         # Check for CNAME records in any section
@@ -285,7 +284,7 @@ class DNSProxyResolver:
             else:
                 logger.debug(f"No CNAMEs found for {query_name}, keeping IPv6 records")
         
-        defer.returnValue(response)
+        return response
     
     def _count_cnames(self, response: dns.Message) -> int:
         """Count CNAME records in all sections"""
