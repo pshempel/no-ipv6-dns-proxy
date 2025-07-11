@@ -229,10 +229,16 @@ test_results/
 # Development scripts (in root only)
 /dev_*.py
 /dev_*.sh
-/test_*.py
-/test_*.sh
+# We want to keep test_server.py and test_server.sh
+# /test_*.py
+# /test_*.sh
 /debug_*.py
 /debug_*.sh
+
+# Test artifacts
+/tmp/dns-proxy-test*.cfg
+/tmp/dns-proxy-test*.pid
+/tmp/dns-proxy-*.log
 
 # Local configuration overrides
 local_*
@@ -249,9 +255,10 @@ dev_config.*
 # Claude artifacts and temporary files
 claude_*.tmp
 *.claude_backup
-# WE DON"T WANT CLAUDE.md files in any directory
+# WE DON"T WANT CLAUDE.md files in any directory EXCEPT ROOT
 **/CLAUDE.md
-CLAUDE.md
+!CLAUDE.md
+!.claude/CLAUDE_DEFAULTS.md
 
 # AI Assistant Documentation (not for git)
 docs/ai-assistant-docs/
@@ -274,3 +281,4 @@ characters.yml
 users.yml.local
 characters.yml.local
 .project_env
+tests/
