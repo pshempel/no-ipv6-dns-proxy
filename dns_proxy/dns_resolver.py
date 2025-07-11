@@ -55,10 +55,11 @@ class DNSMessage:
 class CNAMEFlattener:
     """CNAME flattening resolver"""
     
-    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None):
+    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
         self.upstream_resolver = upstream_resolver
         self.max_recursion = max_recursion
         self.cache = cache or DNSCache()
+        self.remove_aaaa = remove_aaaa
     
     @defer.inlineCallbacks
     def resolve_cname_chain(self, name: str, recursion_count: int = 0) -> List[str]:
@@ -143,11 +144,12 @@ class CNAMEFlattener:
         else:
             logger.warning(f"No A records found after flattening CNAMEs for {original_query_name}")
         
-        # Remove AAAA records as requested
-        aaaa_count = len([rr for rr in dns_msg.answers if rr.type == dns.AAAA])
-        dns_msg.remove_aaaa_records()
-        if aaaa_count > 0:
-            logger.debug(f"Removed {aaaa_count} AAAA records for {original_query_name}")
+        # Remove AAAA records if requested
+        if self.remove_aaaa:
+            aaaa_count = len([rr for rr in dns_msg.answers if rr.type == dns.AAAA])
+            dns_msg.remove_aaaa_records()
+            if aaaa_count > 0:
+                logger.debug(f"Removed {aaaa_count} AAAA records for {original_query_name}")
         
         defer.returnValue(dns_msg)
 
@@ -172,7 +174,8 @@ class DNSProxyResolver:
         self.cname_flattener = CNAMEFlattener(
             self.upstream_resolver, 
             max_recursion, 
-            self.cache
+            self.cache,
+            remove_aaaa
         )
     
     @defer.inlineCallbacks
@@ -272,7 +275,10 @@ class DNSProxyResolver:
         
         if cname_count > 0:
             logger.debug(f"Found {cname_count} total CNAME records for {query_name}")
-            response = yield self._flatten_cnames(response, query_name)
+            # Use the CNAMEFlattener for proper CNAME resolution
+            dns_msg = DNSMessage(response)
+            dns_msg = yield self.cname_flattener.flatten_cnames(dns_msg, query_name)
+            response = dns_msg.to_message()
         else:
             # No CNAMEs, just conditionally remove AAAA records
             if self.remove_aaaa:
@@ -289,57 +295,6 @@ class DNSProxyResolver:
         cname_in_additional = len([rr for rr in response.additional if rr.type == dns.CNAME])
         return cname_in_answers + cname_in_authority + cname_in_additional
     
-    @defer.inlineCallbacks
-    def _flatten_cnames(self, response: dns.Message, query_name: str) -> dns.Message:
-        """Flatten CNAME records to A/AAAA records"""
-        # Find A/AAAA records that are final results of the CNAME chain
-        a_records = [rr for rr in response.answers if rr.type == dns.A]
-        aaaa_records = [rr for rr in response.answers if rr.type == dns.AAAA]
-        
-        if a_records or aaaa_records:
-            flattened_records = []
-            
-            # Flatten A records
-            for a_rr in a_records:
-                if a_rr.type != dns.A:
-                    continue
-                    
-                new_a_record = dns.RRHeader(
-                    name=query_name,
-                    type=dns.A,
-                    cls=dns.IN,
-                    ttl=a_rr.ttl,
-                    payload=a_rr.payload
-                )
-                flattened_records.append(new_a_record)
-                logger.debug(f"Flattened A: {query_name} -> {a_rr.payload.dottedQuad()}")
-            
-            # Process AAAA records if not removing them
-            if not self.remove_aaaa:
-                for aaaa_rr in aaaa_records:
-                    new_aaaa_record = dns.RRHeader(
-                        name=query_name,
-                        type=dns.AAAA,
-                        cls=dns.IN,
-                        ttl=aaaa_rr.ttl,
-                        payload=aaaa_rr.payload
-                    )
-                    flattened_records.append(new_aaaa_record)
-                    logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
-            
-            # Replace response with flattened records
-            response.answers = flattened_records
-            response.authority = []
-            response.additional = []
-            
-            logger.info(f"CNAME flattening: {query_name} -> {len(flattened_records)} records")
-        else:
-            logger.warning(f"Found CNAMEs but no A/AAAA records for {query_name}")
-            response.answers = []
-            response.authority = []
-            response.additional = []
-        
-        defer.returnValue(response)
     
     def _process_non_address_query(self, response: dns.Message) -> dns.Message:
         """Process non-A/AAAA queries"""
