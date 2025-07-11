@@ -30,9 +30,11 @@ Description: DNS CNAME flattening proxy with configurable IPv6 handling
  DNS Proxy is a high-performance DNS proxy that flattens CNAME records
  to A records, with configurable IPv6 record handling, and provides 
  intelligent caching. Built with Twisted for maximum performance and reliability.
+ Supports multiple upstream DNS servers for high availability.
  .
  Key Features:
   * CNAME Flattening: Automatically resolves CNAME chains to final A records
+  * Multiple DNS Servers: Configure multiple upstreams with automatic failover
   * Configurable IPv6: Choose IPv4-only or dual-stack (IPv4+IPv6) responses
   * High Performance: Handles 500-1000+ DNS queries per second
   * Intelligent Caching: TTL-aware caching with configurable limits
