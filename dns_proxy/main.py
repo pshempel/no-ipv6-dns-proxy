@@ -460,6 +460,9 @@ def _initialize_resolver(resolver_config):
     from dns_proxy.cache import DNSCache
     from dns_proxy.rate_limiter import RateLimiter
     
+    # Get logger for this function
+    logger = logging.getLogger(__name__)
+    
     cache = DNSCache(
         max_size=resolver_config['cache_max_size'],
         default_ttl=resolver_config['cache_default_ttl']
