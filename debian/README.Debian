@@ -1,0 +1,49 @@
+dns-proxy for Debian
+====================
+
+Configuration
+-------------
+The main configuration file is located at:
+  /etc/dns-proxy/dns-proxy.cfg
+
+Example configurations are installed in:
+  /usr/share/doc/dns-proxy/examples/
+
+Service Management
+------------------
+The DNS proxy runs as a systemd service:
+  systemctl start dns-proxy
+  systemctl stop dns-proxy
+  systemctl restart dns-proxy
+  systemctl status dns-proxy
+
+The service runs as the dns-proxy user and drops privileges after
+binding to port 53.
+
+Directory Structure
+-------------------
+- Configuration: /etc/dns-proxy/
+- Logs: /var/log/dns-proxy/
+- PID file: /var/run/dns-proxy/dns-proxy.pid
+- State data: /var/lib/dns-proxy/
+
+These directories are managed by systemd and created automatically.
+
+Multiple DNS Servers (v1.2.0+)
+------------------------------
+You can configure multiple upstream DNS servers for redundancy:
+
+  [forwarder-dns]
+  server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]:53
+
+Features
+--------
+- CNAME flattening for improved performance
+- Optional IPv6 filtering (remove-aaaa setting)
+- High-performance caching
+- Multiple upstream DNS server support
+- Automatic failover and load distribution
+
+For more information, see the man page: man dns-proxy
+
+ -- Philip S. Hempel <pshempel@linuxsrc.com>  Fri, 11 Jul 2025 12:00:00 -0400
