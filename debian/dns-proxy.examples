@@ -1,0 +1,4 @@
+# Example configurations for dns-proxy
+test_configs/test-ipv4-only.cfg
+test_configs/test-dual-stack.cfg
+test_configs/test-debug.cfg

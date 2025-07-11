@@ -1,3 +1,24 @@
+dns-proxy (1.1.1-1) bookworm; urgency=medium
+
+  * Cache system improvements and bug fixes:
+    - FIXED: Cache key generation now includes query class (prevents collisions)
+    - FIXED: TTL handling respects DNS TTLs up to 24 hours (was capped at 300s)
+    - FIXED: Cache cleanup no longer runs on every get() (major performance boost)
+    - ADDED: Negative caching for NXDOMAIN responses
+  * Code quality improvements:
+    - REFACTORED: All large functions split into focused helpers (<50 lines each)
+    - ADDED: Comprehensive constants.py for all hardcoded values
+    - IMPROVED: Better error handling and logging throughout
+  * Development enhancements:
+    - ADDED: Test scripts for running from repository without installation
+    - ADDED: Multiple test configurations for different scenarios
+    - ADDED: Comprehensive testing documentation
+  * Configuration improvements:
+    - IDENTIFIED: Multiple DNS server support possible (future enhancement)
+    - IMPROVED: Configuration documentation and examples
+
+ -- Philip S. Hempel <pshempel@linuxsr.com>  Sat, 11 Jan 2025 12:00:00 -0500
+
 dns-proxy (1.1.0-1) bookworm; urgency=medium
 
   * Major bug fixes and feature improvements

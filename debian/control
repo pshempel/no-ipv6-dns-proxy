@@ -10,7 +10,9 @@ Build-Depends: debhelper-compat (= 13),
                python3-openssl (>= 18.0.0),
                python3-service-identity (>= 18.1.0)
 Standards-Version: 4.6.2
-Homepage: https://github.com/example/dns-proxy
+Homepage: https://github.com/pshempel/dns-proxy
+Vcs-Browser: https://github.com/pshempel/dns-proxy
+Vcs-Git: https://github.com/pshempel/dns-proxy.git
 Rules-Requires-Root: no
 
 Package: dns-proxy
@@ -22,7 +24,8 @@ Depends: ${misc:Depends},
          python3-service-identity (>= 18.1.0),
          adduser
 Recommends: logrotate
-Suggests: bind9-dnsutils
+Suggests: bind9-dnsutils, apparmor
+Enhances: systemd-resolved
 Description: DNS CNAME flattening proxy with configurable IPv6 handling
  DNS Proxy is a high-performance DNS proxy that flattens CNAME records
  to A records, with configurable IPv6 record handling, and provides 
