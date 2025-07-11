@@ -1,17 +1,36 @@
+# dns_proxy/cache.py
+# Version: 1.1.0
+# Fixed cache implementation with periodic cleanup and proper key generation
+
 import time
 import threading
+import random
 from typing import Dict, Optional, Tuple, Any
 from collections import OrderedDict
+
+# Import constants for cache configuration
+try:
+    from dns_proxy.constants import (
+        CACHE_MAX_SIZE, CACHE_DEFAULT_TTL,
+        CACHE_CLEANUP_INTERVAL, CACHE_CLEANUP_PROBABILITY
+    )
+except ImportError:
+    # Fallback if constants not available (for testing)
+    CACHE_MAX_SIZE = 10000
+    CACHE_DEFAULT_TTL = 300
+    CACHE_CLEANUP_INTERVAL = 300
+    CACHE_CLEANUP_PROBABILITY = 0.1
 
 class DNSCache:
     """Thread-safe DNS cache with TTL support"""
     
-    def __init__(self, max_size: int = 10000, default_ttl: int = 300):
+    def __init__(self, max_size: int = CACHE_MAX_SIZE, default_ttl: int = CACHE_DEFAULT_TTL):
         self.max_size = max_size
         self.default_ttl = default_ttl
         self._cache: OrderedDict = OrderedDict()
         self._lock = threading.RLock()
         self._stats = {'hits': 0, 'misses': 0, 'evictions': 0}
+        self._last_cleanup = time.time()
     
     def _cleanup_expired(self):
         """Remove expired entries"""
@@ -28,7 +47,18 @@ class DNSCache:
     def get(self, key: str) -> Optional[Any]:
         """Get cached DNS response"""
         with self._lock:
-            self._cleanup_expired()
+            # Only run cleanup periodically, not on every get
+            current_time = time.time()
+            should_cleanup = (
+                # Time-based cleanup
+                (current_time - self._last_cleanup > CACHE_CLEANUP_INTERVAL) or
+                # Probabilistic cleanup (10% chance)
+                (random.random() < CACHE_CLEANUP_PROBABILITY)
+            )
+            
+            if should_cleanup:
+                self._cleanup_expired()
+                self._last_cleanup = current_time
             
             if key in self._cache:
                 data, expiry = self._cache[key]
@@ -71,3 +101,8 @@ class DNSCache:
                 'max_size': self.max_size,
                 **self._stats
             }
+    
+    def __len__(self) -> int:
+        """Get current cache size"""
+        with self._lock:
+            return len(self._cache)

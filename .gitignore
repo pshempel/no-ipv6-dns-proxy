@@ -1,0 +1,276 @@
+# fastapi-tools-server - Git Ignore File
+
+# ==========================================
+# SENSITIVE CONFIGURATION FILES - NEVER COMMIT!
+# ==========================================
+config.yml
+.env
+*.key
+*.pem
+*.crt
+
+# Backup config files
+config.yml.backup
+config.yml.bak
+.env.backup
+.env.bak
+
+# ==========================================
+# PYTHON
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ==========================================
+# LOGS AND RUNTIME
+# ==========================================
+*.log
+logs/
+*.log.*
+log/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================================
+# CONDA
+# ==========================================
+# Conda environments
+.conda/
+conda-bld/
+
+# ==========================================
+# IDE / EDITORS
+# ==========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ==========================================
+# OS SPECIFIC
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==========================================
+# PROJECT SPECIFIC
+# ==========================================
+# User data directories (if using default paths)
+/chats/
+/user_data/
+/uploads/
+/DOCS_reorg/
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Database files (if you add any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated QR codes (if saving to disk)
+/qr_codes/
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Backup files
+*.backup
+*.bak
+
+# Lock files
+*.lock
+
+# ==========================================
+# DEPLOYMENT
+# ==========================================
+# Docker
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore.local
+
+# Systemd logs
+/systemd-logs/
+
+# SSL certificates
+*.crt
+*.key
+*.csr
+*.p12
+*.pfx
+
+# ==========================================
+# DEVELOPMENT
+# ==========================================
+# Testing
+.pytest_cache/
+test_results/
+
+# Development scripts (in root only)
+/dev_*.py
+/dev_*.sh
+/test_*.py
+/test_*.sh
+/debug_*.py
+/debug_*.sh
+
+# Local configuration overrides
+local_*
+dev_config.*
+
+# Performance profiles
+*.prof
+*.profile
+# # Claude Code related files
+.claude/
+.claude_history
+.claude_context
+*.claude_tmp
+# Claude artifacts and temporary files
+claude_*.tmp
+*.claude_backup
+# WE DON"T WANT CLAUDE.md files in any directory
+**/CLAUDE.md
+CLAUDE.md
+
+# AI Assistant Documentation (not for git)
+docs/ai-assistant-docs/
+docs/recommendations/
+
+# Session notes and summaries (not for git)
+docs/archive/session-notes/
+
+# Claude-specific maintenance scripts (not for git)
+scripts/maintenance/
+
+# Development data
+data/
+.pending_confirmations.json
+priv_tools/
+
+# User configuration files (use .example versions)
+users.yml
+characters.yml
+users.yml.local
+characters.yml.local
+.project_env
