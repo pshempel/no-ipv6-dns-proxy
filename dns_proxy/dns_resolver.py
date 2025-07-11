@@ -13,6 +13,7 @@ from twisted.names import dns, client, common
 from twisted.names.error import DNSQueryRefusedError, DNSServerError
 from dns_proxy.cache import DNSCache
 from dns_proxy.rate_limiter import RateLimiter
+from dns_proxy.dns_validator import DNSValidator, DNSValidationError
 from dns_proxy.constants import (
     DNS_DEFAULT_PORT, DNS_UDP_MAX_SIZE, DNS_QUERY_TIMEOUT,
     CACHE_MAX_TTL, CACHE_MIN_TTL, CACHE_NEGATIVE_TTL,
@@ -478,12 +479,13 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
                 logger.debug(f"Rate limited query from {client_ip}")
                 return
             
-            # Parse DNS message
-            message = dns.Message()
-            message.fromStr(data)
-            
-            if not message.queries:
-                logger.warning(f"Received DNS message with no queries from {addr}")
+            # Validate and parse DNS message
+            try:
+                message = DNSValidator.validate_request(data, is_tcp=False)
+            except DNSValidationError as e:
+                logger.warning(f"Invalid DNS request from {addr}: {e}")
+                # Send FORMERR response for malformed requests
+                self._send_error_response(addr, dns.EFORMAT)
                 return
             
             query = message.queries[0]
@@ -500,7 +502,7 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             d.addErrback(self._handle_error, query_id, message, addr)
             
         except Exception as e:
-            logger.error(f"Error parsing UDP DNS query from {addr}: {e}")
+            logger.error(f"Error processing UDP DNS query from {addr}: {e}")
     
     def _send_response(self, response: dns.Message, query_id: int, original_message: dns.Message):
         """Send DNS response back to client"""
@@ -551,6 +553,21 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             self.transport.write(response_data, addr)
         except Exception as e:
             logger.error(f"Failed to send UDP error response to {addr}: {e}")
+    
+    def _send_error_response(self, addr: Tuple[str, int], error_code: int = dns.EFORMAT):
+        """Send error response for invalid requests"""
+        try:
+            # Create minimal error response
+            error_response = dns.Message()
+            error_response.id = 0  # We don't have the original ID
+            error_response.answer = True
+            error_response.rCode = error_code
+            
+            response_data = error_response.toStr()
+            self.transport.write(response_data, addr)
+            logger.debug(f"Sent error response (code {error_code}) to {addr}")
+        except Exception as e:
+            logger.error(f"Failed to send error response to {addr}: {e}")
 
 
 class DNSTCPProtocol(protocol.Protocol):
@@ -594,12 +611,13 @@ class DNSTCPProtocol(protocol.Protocol):
     def _process_dns_message(self, dns_data: bytes):
         """Process a complete DNS message"""
         try:
-            # Parse DNS message
-            message = dns.Message()
-            message.fromStr(dns_data)
-            
-            if not message.queries:
-                logger.warning(f"Received TCP DNS message with no queries from {self.peer.host}")
+            # Validate and parse DNS message
+            try:
+                message = DNSValidator.validate_request(dns_data, is_tcp=True)
+            except DNSValidationError as e:
+                logger.warning(f"Invalid TCP DNS request from {self.peer.host}: {e}")
+                # Send error response and close connection
+                self._send_error_response(dns.EFORMAT)
                 self.transport.loseConnection()
                 return
             
@@ -662,6 +680,23 @@ class DNSTCPProtocol(protocol.Protocol):
             logger.error(f"Failed to send TCP error response to {self.peer.host}: {e}")
         finally:
             self.transport.loseConnection()
+    
+    def _send_error_response(self, error_code: int = dns.EFORMAT):
+        """Send TCP error response for invalid requests"""
+        try:
+            # Create minimal error response
+            error_response = dns.Message()
+            error_response.id = 0  # We don't have the original ID
+            error_response.answer = True
+            error_response.rCode = error_code
+            
+            response_data = error_response.toStr()
+            # TCP needs length prefix
+            length_prefix = struct.pack('!H', len(response_data))
+            self.transport.write(length_prefix + response_data)
+            logger.debug(f"Sent TCP error response (code {error_code}) to {self.peer.host}")
+        except Exception as e:
+            logger.error(f"Failed to send TCP error response to {self.peer.host}: {e}")
 
 
 class DNSTCPFactory(protocol.Factory):

@@ -79,3 +79,7 @@ RATE_LIMIT_BURST = 200  # Burst allowance
 # Query validation
 MAX_DNS_NAME_LENGTH = 255  # Maximum length of a DNS name
 MAX_DNS_LABEL_LENGTH = 63  # Maximum length of a single label
+MIN_DNS_PACKET_SIZE = 12  # Minimum valid DNS packet (header only)
+MAX_DNS_PACKET_SIZE = 65535  # Maximum DNS message size (TCP)
+MAX_DNS_QUESTIONS = 10  # Reasonable limit on questions per query
+MAX_DNS_ANSWERS = 100  # Reasonable limit on answers per response
