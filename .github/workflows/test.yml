@@ -75,16 +75,18 @@ jobs:
     - name: Build Debian package
       run: |
         dpkg-buildpackage -rfakeroot -b -uc -us
+        # Move packages to current directory for upload
+        mv ../*.deb .
         
     - name: Upload Debian package
       uses: actions/upload-artifact@v4
       with:
         name: debian-package
-        path: ../*.deb
+        path: "*.deb"
         
     - name: Test package installation
       run: |
-        sudo dpkg -i ../dns-proxy_*.deb || sudo apt-get install -f -y
+        sudo dpkg -i dns-proxy_*.deb || sudo apt-get install -f -y
         # Test that it installed correctly
         dns-proxy --version
         
