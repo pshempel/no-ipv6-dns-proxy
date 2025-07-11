@@ -28,9 +28,10 @@ class DNSMessage:
     
     def __init__(self, message: dns.Message):
         self.message = message
-        self.answers = list(message.answers)
-        self.authority = list(message.authority)
-        self.additional = list(message.additional)
+        # Type ignore for Twisted's dynamic attributes
+        self.answers = list(message.answers)  # type: ignore
+        self.authority = list(message.authority)  # type: ignore
+        self.additional = list(message.additional)  # type: ignore
     
     def get_cname_records(self) -> List[dns.RRHeader]:
         """Get CNAME records from answers"""
@@ -48,23 +49,24 @@ class DNSMessage:
     
     def to_message(self) -> dns.Message:
         """Convert back to dns.Message"""
-        self.message.answers = self.answers
-        self.message.authority = self.authority
-        self.message.additional = self.additional
+        # Type ignore for Twisted's dynamic attributes
+        self.message.answers = self.answers  # type: ignore
+        self.message.authority = self.authority  # type: ignore
+        self.message.additional = self.additional  # type: ignore
         return self.message
 
 
 class CNAMEFlattener:
     """CNAME flattening resolver"""
     
-    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
+    def __init__(self, upstream_resolver, max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: Optional[DNSCache] = None, remove_aaaa: bool = True):
         self.upstream_resolver = upstream_resolver
         self.max_recursion = max_recursion
         self.cache = cache or DNSCache()
         self.remove_aaaa = remove_aaaa
     
     @defer.inlineCallbacks
-    def resolve_cname_chain(self, name: str, recursion_count: int = 0) -> List[str]:
+    def resolve_cname_chain(self, name: str, recursion_count: int = 0):
         """Resolve CNAME chain to final A record names"""
         if recursion_count >= self.max_recursion:
             logger.warning(f"Max CNAME recursion reached for {name}")
@@ -100,7 +102,7 @@ class CNAMEFlattener:
             defer.returnValue([])
     
     @defer.inlineCallbacks
-    def flatten_cnames(self, dns_msg: DNSMessage, original_query_name: str) -> DNSMessage:
+    def flatten_cnames(self, dns_msg: DNSMessage, original_query_name: str):
         """Flatten CNAME records to A records"""
         cname_records = dns_msg.get_cname_records()
         
@@ -160,7 +162,7 @@ class DNSProxyResolver:
     """Main DNS resolver with CNAME flattening"""
     
     def __init__(self, upstream_servers: List[Tuple[str, int]], 
-                 max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: DNSCache = None, remove_aaaa: bool = True):
+                 max_recursion: int = MAX_CNAME_RECURSION_DEPTH, cache: Optional[DNSCache] = None, remove_aaaa: bool = True):
         """Initialize DNS resolver with support for multiple upstream servers
         
         Args:
@@ -200,7 +202,7 @@ class DNSProxyResolver:
         )
     
     @defer.inlineCallbacks
-    def resolve_query(self, query: dns.Query) -> dns.Message:
+    def resolve_query(self, query: dns.Query):
         """Resolve DNS query with CNAME flattening"""
         query_name = str(query.name)
         query_type = query.type
@@ -249,7 +251,7 @@ class DNSProxyResolver:
         return None
     
     @defer.inlineCallbacks
-    def _forward_to_upstream(self, query: dns.Query, query_name: str) -> dns.Message:
+    def _forward_to_upstream(self, query: dns.Query, query_name: str):
         """Forward query to upstream DNS server"""
         result = yield self.upstream_resolver.query(query)
         answers, authority, additional = result
@@ -464,12 +466,13 @@ class DNSProxyResolver:
 class DNSProxyProtocol(protocol.DatagramProtocol):
     """UDP DNS proxy protocol"""
     
-    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: Optional[RateLimiter] = None):
         self.resolver = resolver
         self.pending_queries: Dict[int, Tuple[str, int]] = {}
         self.rate_limiter = rate_limiter or RateLimiter()
+        self.transport: Any = None  # Set by Twisted when connection is made
     
-    def datagramReceived(self, data: bytes, addr: Tuple[str, int]):
+    def datagramReceived(self, datagram: bytes, addr: Tuple[str, int]):
         """Handle incoming DNS query"""
         try:
             # Check rate limit first
@@ -481,7 +484,7 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             
             # Validate and parse DNS message
             try:
-                message = DNSValidator.validate_request(data, is_tcp=False)
+                message = DNSValidator.validate_request(datagram, is_tcp=False)
             except DNSValidationError as e:
                 logger.warning(f"Invalid DNS request from {addr}: {e}")
                 # Send FORMERR response for malformed requests
@@ -573,10 +576,12 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
 class DNSTCPProtocol(protocol.Protocol):
     """TCP DNS proxy protocol for large responses"""
     
-    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: Optional[RateLimiter] = None):
         self.resolver = resolver
         self.buffer = b''
         self.rate_limiter = rate_limiter
+        self.transport: Any = None  # Set by Twisted when connection is made
+        self.peer: Any = None  # Set in connectionMade
         
     def connectionMade(self):
         """Called when TCP connection is established"""
@@ -702,7 +707,7 @@ class DNSTCPProtocol(protocol.Protocol):
 class DNSTCPFactory(protocol.Factory):
     """Factory for creating TCP DNS protocol instances"""
     
-    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: Optional[RateLimiter] = None):
         self.resolver = resolver
         self.rate_limiter = rate_limiter or RateLimiter()
     
