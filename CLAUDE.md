@@ -177,6 +177,37 @@ Detailed recommendations for improving the codebase are available in:
 
 See the recommendation documents for detailed implementation plans and code examples.
 
+## Directory Structure Standards
+
+### Repository Organization
+Following Python best practices and future scalability:
+
+```
+dns-proxy/
+├── dns_proxy/          # Core package - production code only
+├── tests/              # ALL test code and test configurations
+├── scripts/            # Utility and helper scripts
+├── docs/               # All documentation
+├── debian/             # Debian packaging files
+├── configs/            # Example production configurations
+└── [root files]        # Only standard files (README, setup.py, etc.)
+```
+
+### What Goes Where
+- **Production code**: Only in `dns_proxy/`
+- **Test files**: Only in `tests/` with proper subdirectories
+- **Debug/utility scripts**: In `scripts/` (not root)
+- **Test configs**: In `tests/configs/` (not `test_configs/`)
+- **Documentation**: In `docs/` with logical subdirectories
+
+### Future Growth Support
+This structure supports future enhancements:
+- **Database models**: Add `dns_proxy/models/`
+- **REST API**: Add `dns_proxy/api/`
+- **Web UI**: Add `dns_proxy/web/` or separate repo
+- **Plugins**: Add `dns_proxy/plugins/`
+- **Multiple services**: Add `services/` directory
+
 ## Code Standards
 
 ### Configuration Constants
@@ -217,11 +248,64 @@ See `docs/recommendations/cache-fixes-implemented.md` for details.
   # Modified by Claude: 2025-01-10 - Added support for multiple DNS providers
   ```
 
+### Commit Frequency and Standards
+**IMPORTANT**: Make regular commits during work sessions!
+
+#### When to Commit:
+1. **After completing a feature or fix** (don't wait for session end)
+2. **After significant refactoring** (e.g., reorganizing files)
+3. **Before switching context** (different type of work)
+4. **After updating documentation**
+5. **When tests are passing**
+
+#### Commit Message Format:
+```
+<type>: <subject>
+
+<body - optional>
+
+<footer - optional>
+```
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `refactor`: Code restructuring
+- `test`: Test additions/changes
+- `chore`: Maintenance tasks
+
+Examples:
+- `fix: Correct PID file permissions after privilege drop`
+- `refactor: Reorganize test files into proper directory structure`
+- `docs: Update CLAUDE.md with commit guidelines`
+
+#### Regular Commit Checklist:
+- [ ] Tests passing (if applicable)
+- [ ] Documentation updated
+- [ ] No sensitive information
+- [ ] Clear commit message
+- [ ] Related changes grouped together
+
 ### Testing Standards
-- Tests go in `tests/` directory, never at repository root
-- Use pytest as the standard test framework
-- Test file naming: `test_<module>.py`
-- Keep tests independent and repeatable
+- **ALL tests MUST go in `tests/` directory** - NEVER at repository root
+- **Directory structure**:
+  ```
+  tests/
+  ├── unit/           # Unit tests for individual modules
+  ├── integration/    # Integration tests for features
+  ├── performance/    # Performance and load tests
+  ├── configs/        # Test configuration files
+  ├── fixtures/       # Test data and fixtures
+  └── scripts/        # Test runner scripts
+  ```
+- **Naming conventions**:
+  - Unit tests: `test_<module>.py` (e.g., `test_cache.py`)
+  - Integration tests: `test_<feature>_integration.py`
+  - Test scripts: `<purpose>_test.sh` (e.g., `pid_handling_test.sh`)
+- **Framework**: Use pytest as the standard test framework
+- **Independence**: Keep tests independent and repeatable
+- **NO test files in root**: Move any test_*.py or *_test.sh to appropriate subdirectory
 
 ### Security Considerations
 - Never hardcode secrets or API keys
