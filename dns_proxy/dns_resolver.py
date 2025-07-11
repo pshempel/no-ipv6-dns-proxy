@@ -5,20 +5,17 @@
 import logging
 import socket
 import struct
-import random
 from typing import List, Dict, Any, Optional, Tuple
-from twisted.internet import reactor, defer, protocol
-from twisted.internet.defer import Deferred
-from twisted.names import dns, client, common
-from twisted.names.error import DNSQueryRefusedError, DNSServerError
+from twisted.internet import defer, protocol
+from twisted.names import dns, client
 from dns_proxy.cache import DNSCache
 from dns_proxy.rate_limiter import RateLimiter
 from dns_proxy.dns_validator import DNSValidator, DNSValidationError
 from dns_proxy.constants import (
     DNS_DEFAULT_PORT, DNS_UDP_MAX_SIZE, DNS_QUERY_TIMEOUT,
-    CACHE_MAX_TTL, CACHE_MIN_TTL, CACHE_NEGATIVE_TTL,
+    CACHE_MAX_TTL, CACHE_NEGATIVE_TTL,
     MAX_CNAME_RECURSION_DEPTH, CNAME_DEFAULT_TTL,
-    ALLOWED_QUERY_TYPES, LOG_QUERY_DETAILS
+    LOG_QUERY_DETAILS
 )
 
 logger = logging.getLogger(__name__)
@@ -65,7 +62,7 @@ class CNAMEFlattener:
         self.cache = cache or DNSCache()
         self.remove_aaaa = remove_aaaa
     
-    @defer.inlineCallbacks
+    @defer.inlineCallbacks  # type: ignore[misc]
     def resolve_cname_chain(self, name: str, recursion_count: int = 0):
         """Resolve CNAME chain to final A record names"""
         if recursion_count >= self.max_recursion:
@@ -101,7 +98,7 @@ class CNAMEFlattener:
             logger.debug(f"No CNAME found for {name}: {e}")
             defer.returnValue([])
     
-    @defer.inlineCallbacks
+    @defer.inlineCallbacks  # type: ignore[misc]
     def flatten_cnames(self, dns_msg: DNSMessage, original_query_name: str):
         """Flatten CNAME records to A records"""
         cname_records = dns_msg.get_cname_records()
@@ -115,6 +112,8 @@ class CNAMEFlattener:
         all_a_records = []
         
         for cname_rr in cname_records:
+            if cname_rr.payload is None:
+                continue
             target_name = str(cname_rr.payload.name)
             logger.debug(f"Resolving CNAME target: {target_name}")
             
@@ -201,7 +200,7 @@ class DNSProxyResolver:
             remove_aaaa
         )
     
-    @defer.inlineCallbacks
+    @defer.inlineCallbacks  # type: ignore[misc]
     def resolve_query(self, query: dns.Query):
         """Resolve DNS query with CNAME flattening"""
         query_name = str(query.name)
@@ -250,7 +249,7 @@ class DNSProxyResolver:
             return cached_response
         return None
     
-    @defer.inlineCallbacks
+    @defer.inlineCallbacks  # type: ignore[misc]
     def _forward_to_upstream(self, query: dns.Query, query_name: str):
         """Forward query to upstream DNS server"""
         result = yield self.upstream_resolver.query(query)
@@ -270,9 +269,10 @@ class DNSProxyResolver:
     def _log_upstream_response(self, query_name: str, response: dns.Message):
         """Log details of upstream response"""
         logger.debug(f"Upstream response for {query_name}:")
-        logger.debug(f"  Answers: {len(response.answers)} records")
+        answers = response.answers if response.answers else []
+        logger.debug(f"  Answers: {len(answers)} records")
         
-        for i, rr in enumerate(response.answers):
+        for i, rr in enumerate(answers):
             try:
                 if rr.type == dns.CNAME:
                     target = str(rr.payload.name)
@@ -287,8 +287,10 @@ class DNSProxyResolver:
             except Exception as e:
                 logger.debug(f"    [{i}] Error logging record: {e}")
         
-        logger.debug(f"  Authority: {len(response.authority)} records")
-        logger.debug(f"  Additional: {len(response.additional)} records")
+        authority = response.authority if response.authority else []
+        additional = response.additional if response.additional else []
+        logger.debug(f"  Authority: {len(authority)} records")
+        logger.debug(f"  Additional: {len(additional)} records")
     
     def _process_address_query(self, response: dns.Message, query_name: str, query_type: int) -> dns.Message:
         """Process A or AAAA queries with CNAME flattening"""
@@ -315,17 +317,21 @@ class DNSProxyResolver:
     
     def _count_cnames(self, response: dns.Message) -> int:
         """Count CNAME records in all sections"""
-        cname_in_answers = len([rr for rr in response.answers if rr.type == dns.CNAME])
-        cname_in_authority = len([rr for rr in response.authority if rr.type == dns.CNAME])
-        cname_in_additional = len([rr for rr in response.additional if rr.type == dns.CNAME])
+        answers = response.answers if response.answers else []
+        authority = response.authority if response.authority else []
+        additional = response.additional if response.additional else []
+        cname_in_answers = len([rr for rr in answers if rr.type == dns.CNAME])
+        cname_in_authority = len([rr for rr in authority if rr.type == dns.CNAME])
+        cname_in_additional = len([rr for rr in additional if rr.type == dns.CNAME])
         return cname_in_answers + cname_in_authority + cname_in_additional
     
     def _flatten_cname_chain(self, response: dns.Message, query_name: str) -> dns.Message:
         """Flatten CNAME chain when response already contains both CNAMEs and A/AAAA records"""
         try:
             # Extract A and AAAA records from the response
-            a_records = [rr for rr in response.answers if rr.type == dns.A]
-            aaaa_records = [rr for rr in response.answers if rr.type == dns.AAAA]
+            answers = response.answers if response.answers else []
+            a_records = [rr for rr in answers if rr.type == dns.A]
+            aaaa_records = [rr for rr in answers if rr.type == dns.AAAA]
             
             logger.debug(f"Flattening CNAME chain: found {len(a_records)} A records, {len(aaaa_records)} AAAA records")
             
@@ -404,9 +410,12 @@ class DNSProxyResolver:
     def _process_non_address_query(self, response: dns.Message) -> dns.Message:
         """Process non-A/AAAA queries"""
         # Remove CNAMEs (they don't make sense for non-address queries)
-        response.answers = [rr for rr in response.answers if rr.type != dns.CNAME]
-        response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
-        response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
+        if response.answers:
+            response.answers = [rr for rr in response.answers if rr.type != dns.CNAME]
+        if response.authority:
+            response.authority = [rr for rr in response.authority if rr.type != dns.CNAME]
+        if response.additional:
+            response.additional = [rr for rr in response.additional if rr.type != dns.CNAME]
         
         # Conditionally remove AAAA records
         if self.remove_aaaa:
@@ -416,15 +425,22 @@ class DNSProxyResolver:
     
     def _remove_aaaa_records(self, response: dns.Message, context: str) -> dns.Message:
         """Remove AAAA records from all sections"""
+        answers = response.answers if response.answers else []
+        authority = response.authority if response.authority else []
+        additional = response.additional if response.additional else []
+        
         aaaa_count = (
-            len([rr for rr in response.answers if rr.type == dns.AAAA]) +
-            len([rr for rr in response.authority if rr.type == dns.AAAA]) +
-            len([rr for rr in response.additional if rr.type == dns.AAAA])
+            len([rr for rr in answers if rr.type == dns.AAAA]) +
+            len([rr for rr in authority if rr.type == dns.AAAA]) +
+            len([rr for rr in additional if rr.type == dns.AAAA])
         )
         
-        response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
-        response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
-        response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
+        if response.answers:
+            response.answers = [rr for rr in response.answers if rr.type != dns.AAAA]
+        if response.authority:
+            response.authority = [rr for rr in response.authority if rr.type != dns.AAAA]
+        if response.additional:
+            response.additional = [rr for rr in response.additional if rr.type != dns.AAAA]
         
         if aaaa_count > 0:
             logger.debug(f"Removed {aaaa_count} AAAA records from {context}")
@@ -491,6 +507,11 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
                 self._send_error_response(addr, dns.EFORMAT)
                 return
             
+            if not message.queries:
+                logger.error(f"DNS message has no queries from {addr}")
+                self._send_error_response(addr, dns.EFORMAT)
+                return
+                
             query = message.queries[0]
             query_id = message.id
             
@@ -498,7 +519,7 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             
             # Store client info for response
             self.pending_queries[query_id] = addr
-            
+                
             # Resolve query
             d = self.resolver.resolve_query(query)
             d.addCallback(self._send_response, query_id, message)
@@ -626,6 +647,12 @@ class DNSTCPProtocol(protocol.Protocol):
                 self.transport.loseConnection()
                 return
             
+            if not message.queries:
+                logger.error(f"TCP DNS message has no queries from {self.peer.host}")
+                self._send_error_response(dns.EFORMAT)
+                self.transport.loseConnection()
+                return
+                
             query = message.queries[0]
             query_id = message.id
             
@@ -713,4 +740,5 @@ class DNSTCPFactory(protocol.Factory):
     
     def buildProtocol(self, addr):
         """Build a new TCP protocol instance"""
+        # addr parameter is required by Twisted but not used
         return DNSTCPProtocol(self.resolver, self.rate_limiter)
