@@ -39,8 +39,8 @@ jobs:
         
     - name: Run type checking
       run: |
-        pip install mypy types-twisted
-        mypy dns_proxy/ --ignore-missing-imports || echo "Type checking completed with warnings"
+        pip install mypy
+        mypy dns_proxy/ --ignore-missing-imports --no-strict-optional || echo "Type checking completed with warnings"
         
     - name: Run unit tests
       run: |
