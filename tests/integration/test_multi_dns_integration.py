@@ -12,7 +12,7 @@ def test_multi_dns_config():
     
     # Test 1: Multiple IPv4 servers
     print("Test 1: Multiple IPv4 servers")
-    config = DNSProxyConfig("test_configs/multi-dns.cfg")
+    config = DNSProxyConfig("tests/configs/multi-dns.cfg")
     servers = config.get_upstream_servers()
     print(f"  Servers: {servers}")
     assert len(servers) == 6
@@ -23,7 +23,7 @@ def test_multi_dns_config():
     
     # Test 2: Mixed servers with custom ports
     print("\nTest 2: Mixed servers with custom ports")
-    config = DNSProxyConfig("test_configs/multi-dns-with-ports.cfg")
+    config = DNSProxyConfig("tests/configs/multi-dns-with-ports.cfg")
     servers = config.get_upstream_servers()
     print(f"  Servers: {servers}")
     assert servers[0] == ('1.1.1.1', 53)  # Uses default port
@@ -35,7 +35,7 @@ def test_multi_dns_config():
     
     # Test 3: Backward compatibility (single server)
     print("\nTest 3: Backward compatibility")
-    config = DNSProxyConfig("test_configs/test-ipv4-only.cfg")
+    config = DNSProxyConfig("tests/configs/test-ipv4-only.cfg")
     servers = config.get_upstream_servers()
     print(f"  Servers: {servers}")
     assert len(servers) == 1

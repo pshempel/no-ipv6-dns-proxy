@@ -226,19 +226,26 @@ docker-compose.override.yml
 .pytest_cache/
 test_results/
 
-# Development scripts (in root only)
+# Development scripts (in root only - should not exist)
 /dev_*.py
 /dev_*.sh
-# We want to keep test_server.py and test_server.sh
-# /test_*.py
-# /test_*.sh
+/test_*.py
+/test_*.sh
 /debug_*.py
 /debug_*.sh
+/*_test.py
+/*_test.sh
 
 # Test artifacts
 /tmp/dns-proxy-test*.cfg
 /tmp/dns-proxy-test*.pid
 /tmp/dns-proxy-*.log
+tests/**/*.pyc
+tests/**/__pycache__/
+tests/.pytest_cache/
+tests/htmlcov/
+tests/.coverage
+tests/**/*.log
 
 # Local configuration overrides
 local_*
@@ -281,4 +288,3 @@ characters.yml
 users.yml.local
 characters.yml.local
 .project_env
-tests/
