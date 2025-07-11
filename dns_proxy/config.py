@@ -14,7 +14,7 @@ class DNSProxyConfig:
             'listen-address': '0.0.0.0',
             'user': 'dns-proxy',
             'group': 'dns-proxy',
-            'pid-file': '/var/run/dns-proxy.pid'
+            'pid-file': '/var/run/dns-proxy/dns-proxy.pid'
         },
         'forwarder-dns': {
             'server-address': '8.8.8.8',
@@ -31,7 +31,7 @@ class DNSProxyConfig:
             'max-ttl': '3600'
         },
         'log-file': {
-            'log-file': '/var/log/dns-proxy.log',
+            'log-file': '/var/log/dns-proxy/dns-proxy.log',
             'debug-level': 'INFO',
             'syslog': 'false',
             'syslog-facility': 'daemon'

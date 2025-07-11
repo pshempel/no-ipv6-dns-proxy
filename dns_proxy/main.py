@@ -401,6 +401,34 @@ def _get_resolver_config(config, args):
     }
 
 
+def _validate_paths(config, args, logger):
+    """Validate all configured paths exist or can be created"""
+    # Modified by Claude: 2025-01-11 - Added comprehensive path validation
+    
+    # Check log file path
+    log_file = args.logfile or config.get('log-file', 'log-file')
+    if log_file and log_file.lower() != 'none':
+        log_dir = os.path.dirname(log_file)
+        if log_dir and not os.path.exists(log_dir):
+            if not os.access(os.path.dirname(log_dir) or '/', os.W_OK):
+                logger.warning(f"Cannot create log directory {log_dir} - no write permission")
+            else:
+                logger.info(f"Log directory {log_dir} will be created if needed")
+    
+    # Check PID file path
+    pid_file = args.pidfile or config.get('dns-proxy', 'pid-file')
+    if pid_file:
+        pid_dir = os.path.dirname(pid_file)
+        if pid_dir and not os.path.exists(pid_dir):
+            if not os.access(os.path.dirname(pid_dir) or '/', os.W_OK):
+                logger.warning(f"Cannot create PID directory {pid_dir} - no write permission")
+                # If systemd is managing directories, this is fine
+                if 'systemd' in os.environ.get('INVOCATION_ID', ''):
+                    logger.info("Running under systemd - directories will be created by systemd")
+            else:
+                logger.info(f"PID directory {pid_dir} will be created if needed")
+
+
 def _validate_config(resolver_config, logger):
     """Validate configuration and log settings"""
     # Modified by Claude: 2025-01-11 - Updated to handle multiple upstream servers
@@ -494,6 +522,9 @@ def main():
         
         # Get resolver configuration
         resolver_config = _get_resolver_config(config, args)
+        
+        # Validate paths from configuration
+        _validate_paths(config, args, logger)
         
         # Validate configuration
         _validate_config(resolver_config, logger)
