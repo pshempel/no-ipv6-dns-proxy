@@ -58,11 +58,11 @@ def run_dns_proxy(config_file, foreground=True, log_level='INFO'):
     # Build arguments
     args = [
         '--config', str(config_file),
-        '--log-level', log_level
+        '--loglevel', log_level
     ]
     
-    if foreground:
-        args.append('--foreground')
+    if not foreground:
+        args.append('--daemonize')
     
     # Mock sys.argv for main()
     original_argv = sys.argv
@@ -113,7 +113,7 @@ Examples:
   ./test_server.py -c my-test.cfg
   
   # Run with debug logging
-  ./test_server.py -l DEBUG
+  ./test_server.py -L DEBUG
   
   # Just create config and exit
   ./test_server.py --create-config-only
@@ -125,7 +125,7 @@ Examples:
     parser.add_argument('-c', '--config', 
                         default='/tmp/dns-proxy-test.cfg',
                         help='Configuration file path (default: /tmp/dns-proxy-test.cfg)')
-    parser.add_argument('-l', '--log-level',
+    parser.add_argument('-L', '--loglevel',
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         default='INFO',
                         help='Log level (default: INFO)')
@@ -135,7 +135,7 @@ Examples:
     parser.add_argument('--run-tests',
                         action='store_true',
                         help='Run DNS query tests after starting server')
-    parser.add_argument('--no-foreground',
+    parser.add_argument('-d', '--daemonize',
                         action='store_true',
                         help='Run as daemon (not recommended for testing)')
     
@@ -156,8 +156,8 @@ Examples:
     print("="*60)
     print(f"Repository root: {REPO_ROOT}")
     print(f"Configuration: {config_path}")
-    print(f"Log level: {args.log_level}")
-    print(f"Foreground: {not args.no_foreground}")
+    print(f"Log level: {args.loglevel}")
+    print(f"Foreground: {not args.daemonize}")
     print("\nServer will listen on 127.0.0.1:15353")
     print("Test with: dig @127.0.0.1 -p 15353 example.com")
     print("\nPress Ctrl+C to stop the server")
@@ -168,7 +168,7 @@ Examples:
         import threading
         server_thread = threading.Thread(
             target=run_dns_proxy,
-            args=(config_path, not args.no_foreground, args.log_level),
+            args=(config_path, not args.daemonize, args.loglevel),
             daemon=True
         )
         server_thread.start()
@@ -190,7 +190,7 @@ Examples:
     else:
         # Run server directly
         try:
-            run_dns_proxy(config_path, not args.no_foreground, args.log_level)
+            run_dns_proxy(config_path, not args.daemonize, args.loglevel)
         except KeyboardInterrupt:
             print("\nServer stopped.")
         except Exception as e:

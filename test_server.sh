@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             CONFIG_FILE="$2"
             shift 2
             ;;
-        -l|--log-level)
+        -L|--loglevel)
             LOG_LEVEL="$2"
             shift 2
             ;;
@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -c, --config FILE      Use custom config file (default: $DEFAULT_CONFIG)"
-            echo "  -l, --log-level LEVEL  Set log level (DEBUG, INFO, WARNING, ERROR)"
+            echo "  -L, --loglevel LEVEL   Set log level (DEBUG, INFO, WARNING, ERROR)"
             echo "  --run-tests            Run DNS query tests after starting"
             echo "  --create-config-only   Only create config file and exit"
             echo "  -h, --help             Show this help message"
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0"
             echo ""
             echo "  # Run with debug logging and tests"
-            echo "  $0 -l DEBUG --run-tests"
+            echo "  $0 -L DEBUG --run-tests"
             echo ""
             echo "  # Use custom config"
             echo "  $0 -c ~/my-dns-test.cfg"
@@ -107,7 +107,7 @@ else
 fi
 
 # Build command
-CMD="$RUNNER test_server.py -c $CONFIG_FILE -l $LOG_LEVEL"
+CMD="$RUNNER test_server.py -c $CONFIG_FILE -L $LOG_LEVEL"
 
 if [ "$RUN_TESTS" = true ]; then
     CMD="$CMD --run-tests"

@@ -50,8 +50,8 @@ debug-level = INFO
     print(f"Test with: dig @127.0.0.1 -p 15353 example.com")
     print("Press Ctrl+C to stop\n")
     
-    # Set up arguments
-    sys.argv = ['dns-proxy', '-c', config, '-f']
+    # Set up arguments (no -f flag, runs in foreground by default without -d)
+    sys.argv = ['dns-proxy', '-c', config]
     
     try:
         main()

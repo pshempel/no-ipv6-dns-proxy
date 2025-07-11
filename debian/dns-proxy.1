@@ -20,11 +20,14 @@ The service can operate in two modes:
 .BR \-c ", " \-\-config " " \fIFILE\fR
 Path to configuration file (default: /etc/dns-proxy/dns-proxy.cfg)
 .TP
-.BR \-f ", " \-\-foreground
-Run in foreground (do not daemonize)
+.BR \-d ", " \-\-daemonize
+Run as daemon (default is to run in foreground)
 .TP
-.BR \-l ", " \-\-log\-level " " \fILEVEL\fR
-Set log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
+.BR \-l ", " \-\-logfile " " \fIFILE\fR
+Log file path (overrides config)
+.TP
+.BR \-L ", " \-\-loglevel " " \fILEVEL\fR
+Set log level: DEBUG, INFO, WARNING, ERROR
 .TP
 .BR \-\-port " " \fIPORT\fR
 Override listen port from configuration
@@ -65,10 +68,10 @@ Run dns-proxy with default configuration:
 dns-proxy
 .fi
 .PP
-Run in foreground with debug logging:
+Run with debug logging:
 .PP
 .nf
-dns-proxy -f -l DEBUG
+dns-proxy -L DEBUG
 .fi
 .PP
 Use custom configuration and upstream server:

@@ -71,7 +71,7 @@ You can run multiple test instances with different configs:
 
 ### Enable Debug Logging
 ```bash
-./test_server.sh -l DEBUG
+./test_server.sh -L DEBUG
 ```
 
 ### Watch Debug Log
