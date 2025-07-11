@@ -301,7 +301,11 @@ def start_dns_server(config, args, logger, udp_protocol):
 
 def _parse_arguments():
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description='DNS CNAME Flattening Proxy')
+    parser = argparse.ArgumentParser(
+        description='DNS CNAME Flattening Proxy with optional IPv6 filtering. '
+                    'Supports multiple upstream DNS servers for high availability.',
+        epilog='Configuration supports multiple DNS servers: server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]'
+    )
     parser.add_argument('-c', '--config', default='/etc/dns-proxy/dns-proxy.cfg',
                        help='Configuration file path')
     parser.add_argument('-l', '--logfile', help='Log file path (overrides config)')
@@ -309,7 +313,10 @@ def _parse_arguments():
                        help='Log level')
     parser.add_argument('-p', '--port', type=int, help='Listen port (overrides config)')
     parser.add_argument('-a', '--address', help='Listen address (overrides config)')
-    parser.add_argument('-u', '--upstream', help='Upstream DNS server (overrides config)')
+    parser.add_argument('-u', '--upstream', 
+                       help='Upstream DNS server (overrides ALL configured servers). '
+                            'Format: IP[:port] or [IPv6]:port. '
+                            'Examples: 1.1.1.1, 8.8.8.8:53, [2606:4700:4700::1111]:53')
     parser.add_argument('-d', '--daemonize', action='store_true', help='Run as daemon')
     parser.add_argument('-v', '--version', action='store_true', help='Show version')
     parser.add_argument('--pidfile', help='PID file path')
