@@ -13,7 +13,6 @@ Provides security validation for DNS requests and responses to prevent:
 """
 
 import logging
-from typing import Tuple, Optional
 from twisted.names import dns
 from dns_proxy.constants import (
     MIN_DNS_PACKET_SIZE,
@@ -113,13 +112,14 @@ class DNSValidator:
             DNSValidationError: If message is invalid
         """
         # Check number of questions
-        if len(message.queries) > MAX_DNS_QUESTIONS:
+        queries = message.queries if message.queries else []
+        if len(queries) > MAX_DNS_QUESTIONS:
             raise DNSValidationError(
-                f"Too many questions in DNS query: {len(message.queries)} (maximum {MAX_DNS_QUESTIONS})"
+                f"Too many questions in DNS query: {len(queries)} (maximum {MAX_DNS_QUESTIONS})"
             )
         
         # Validate each query
-        for query in message.queries:
+        for query in queries:
             # Validate query name
             try:
                 DNSValidator.validate_dns_name(str(query.name))
@@ -134,7 +134,10 @@ class DNSValidator:
         
         # If it's a response, check answer count
         if hasattr(message, 'answer') and message.answer:
-            total_records = len(message.answers) + len(message.authority) + len(message.additional)
+            answers = message.answers if message.answers else []
+            authority = message.authority if message.authority else []
+            additional = message.additional if message.additional else []
+            total_records = len(answers) + len(authority) + len(additional)
             if total_records > MAX_DNS_ANSWERS:
                 raise DNSValidationError(
                     f"Too many records in DNS response: {total_records} (maximum {MAX_DNS_ANSWERS})"

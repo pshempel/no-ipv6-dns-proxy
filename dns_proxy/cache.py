@@ -5,7 +5,7 @@
 import time
 import threading
 import random
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Any
 from collections import OrderedDict
 
 # Import constants for cache configuration
@@ -37,7 +37,7 @@ class DNSCache:
         current_time = time.time()
         expired_keys = []
         
-        for key, (data, expiry) in self._cache.items():
+        for key, (_, expiry) in self._cache.items():
             if current_time > expiry:
                 expired_keys.append(key)
         
