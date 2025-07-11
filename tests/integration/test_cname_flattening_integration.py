@@ -3,8 +3,12 @@
 Test CNAME flattening with debug output
 """
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
+import os
+
+# Set up test environment properly
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from test_utils import setup_test_environment
+setup_test_environment()
 
 import logging
 logging.basicConfig(
@@ -24,8 +28,8 @@ def test_flattening():
     # Create resolver with remove_aaaa=true
     cache = DNSCache()
     resolver = DNSProxyResolver(
-        upstream_server='1.1.1.1',
-        upstream_port=53,
+        upstream_servers=[('1.1.1.1', 53)],  # Updated to use correct parameter
+        max_recursion=10,
         cache=cache,
         remove_aaaa=True
     )

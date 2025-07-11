@@ -12,11 +12,12 @@ import signal
 import time
 from pathlib import Path
 
-# Add the repository root to Python path
-REPO_ROOT = Path(__file__).parent.absolute()
-sys.path.insert(0, str(REPO_ROOT))
+# Set up test environment (finds repo root and sets Python path)
+from test_utils import setup_test_environment, get_test_config_path
+from test_utils import create_test_config as create_config_file
+REPO_ROOT = setup_test_environment()
 
-def create_test_config(config_path):
+def create_test_config_old(config_path):
     """Create a test configuration file"""
     config_content = """# Test DNS Proxy Configuration
 [dns-proxy]

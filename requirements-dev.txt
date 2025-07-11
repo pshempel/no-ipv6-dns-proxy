@@ -9,6 +9,7 @@ pytest-cov>=4.0.0
 pytest-timeout>=2.1.0
 pytest-mock>=3.10.0
 pytest-asyncio>=0.21.0
+pytest-twisted>=1.13.0
 coverage>=7.0.0
 
 # Code quality

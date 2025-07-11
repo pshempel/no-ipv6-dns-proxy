@@ -130,12 +130,15 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
     
     servers = []
     
+    # Get rate limiter from main protocol
+    rate_limiter = getattr(udp_protocol, 'rate_limiter', None)
+    
     # Create separate protocol instances for IPv6
-    udp_protocol_v6 = DNSProxyProtocol(udp_protocol.resolver)
+    udp_protocol_v6 = DNSProxyProtocol(udp_protocol.resolver, rate_limiter)
     
     # Start IPv6 servers first (they're pickier about binding)
     udp_server_v6 = reactor.listenUDP(listen_port, udp_protocol_v6, interface='::')
-    tcp_factory_v6 = DNSTCPFactory(udp_protocol.resolver)
+    tcp_factory_v6 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
     tcp_server_v6 = reactor.listenTCP(listen_port, tcp_factory_v6, interface='::')
     logger.info(f"DNS Proxy IPv6 servers listening on [::]:{listen_port} (UDP + TCP)")
     servers.append((udp_server_v6, tcp_server_v6))
@@ -143,7 +146,7 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
     # Start IPv4 servers with SO_REUSEADDR
     try:
         udp_server_v4 = reactor.listenUDP(listen_port, udp_protocol, interface='0.0.0.0')
-        tcp_factory_v4 = DNSTCPFactory(udp_protocol.resolver)
+        tcp_factory_v4 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
         tcp_server_v4 = reactor.listenTCP(listen_port, tcp_factory_v4, interface='0.0.0.0')
         logger.info(f"DNS Proxy IPv4 servers listening on 0.0.0.0:{listen_port} (UDP + TCP)")
         servers.append((udp_server_v4, tcp_server_v4))
@@ -266,8 +269,11 @@ def start_dns_server(config, args, logger, udp_protocol):
     # Setup signal handlers
     _setup_signal_handlers(logger)
     
+    # Get rate limiter from main protocol
+    rate_limiter = getattr(udp_protocol, 'rate_limiter', None)
+    
     # Create TCP factory
-    tcp_factory = DNSTCPFactory(udp_protocol.resolver)
+    tcp_factory = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
     
     # Bind servers based on address configuration
     if listen_address == '::':
@@ -449,13 +455,19 @@ def _validate_config(resolver_config, logger):
 def _initialize_resolver(resolver_config):
     """Initialize DNS resolver components"""
     # Modified by Claude: 2025-01-11 - Updated to pass multiple upstream servers
+    # Modified by Claude: 2025-01-11 - Added rate limiter support
     from dns_proxy.dns_resolver import DNSProxyResolver, DNSProxyProtocol
     from dns_proxy.cache import DNSCache
+    from dns_proxy.rate_limiter import RateLimiter
     
     cache = DNSCache(
         max_size=resolver_config['cache_max_size'],
         default_ttl=resolver_config['cache_default_ttl']
     )
+    
+    # Create rate limiter (will use default constants from constants.py)
+    rate_limiter = RateLimiter()
+    logger.info(f"Rate limiting enabled: {rate_limiter.rate_per_ip} queries/sec per IP, burst {rate_limiter.burst_per_ip}")
     
     resolver = DNSProxyResolver(
         upstream_servers=resolver_config['upstream_servers'],  # Now passing list of servers
@@ -464,7 +476,9 @@ def _initialize_resolver(resolver_config):
         remove_aaaa=resolver_config['remove_aaaa']
     )
     
-    udp_protocol = DNSProxyProtocol(resolver)
+    udp_protocol = DNSProxyProtocol(resolver, rate_limiter)
+    # Store rate limiter on protocol for access by other functions
+    udp_protocol.rate_limiter = rate_limiter
     return udp_protocol
 
 

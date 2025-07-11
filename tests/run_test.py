@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 run_test.py - Simplified test runner for DNS proxy
-Can be called directly with: priv_tools/project_run.sh python run_test.py
+Can be called directly with: priv_tools/project_run.sh python tests/run_test.py
 """
 
 import sys
@@ -11,8 +11,9 @@ import signal
 import subprocess
 from pathlib import Path
 
-# Add the repository root to Python path
-sys.path.insert(0, str(Path(__file__).parent))
+# Set up test environment (finds repo root and sets Python path)
+from test_utils import setup_test_environment, create_test_config
+REPO_ROOT = setup_test_environment()
 
 # Import after path is set
 from dns_proxy.main import main

@@ -12,6 +12,7 @@ from twisted.internet.defer import Deferred
 from twisted.names import dns, client, common
 from twisted.names.error import DNSQueryRefusedError, DNSServerError
 from dns_proxy.cache import DNSCache
+from dns_proxy.rate_limiter import RateLimiter
 from dns_proxy.constants import (
     DNS_DEFAULT_PORT, DNS_UDP_MAX_SIZE, DNS_QUERY_TIMEOUT,
     CACHE_MAX_TTL, CACHE_MIN_TTL, CACHE_NEGATIVE_TTL,
@@ -462,13 +463,21 @@ class DNSProxyResolver:
 class DNSProxyProtocol(protocol.DatagramProtocol):
     """UDP DNS proxy protocol"""
     
-    def __init__(self, resolver: DNSProxyResolver):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
         self.resolver = resolver
         self.pending_queries: Dict[int, Tuple[str, int]] = {}
+        self.rate_limiter = rate_limiter or RateLimiter()
     
     def datagramReceived(self, data: bytes, addr: Tuple[str, int]):
         """Handle incoming DNS query"""
         try:
+            # Check rate limit first
+            client_ip = addr[0]
+            if not self.rate_limiter.is_allowed(client_ip):
+                # Drop the query silently when rate limited
+                logger.debug(f"Rate limited query from {client_ip}")
+                return
+            
             # Parse DNS message
             message = dns.Message()
             message.fromStr(data)
@@ -547,14 +556,21 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
 class DNSTCPProtocol(protocol.Protocol):
     """TCP DNS proxy protocol for large responses"""
     
-    def __init__(self, resolver: DNSProxyResolver):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
         self.resolver = resolver
         self.buffer = b''
+        self.rate_limiter = rate_limiter
         
     def connectionMade(self):
         """Called when TCP connection is established"""
         self.peer = self.transport.getPeer()
         logger.debug(f"TCP connection from {self.peer.host}:{self.peer.port}")
+        
+        # Check rate limit for TCP connections
+        if self.rate_limiter and not self.rate_limiter.is_allowed(self.peer.host):
+            logger.warning(f"Rate limited TCP connection from {self.peer.host}")
+            self.transport.loseConnection()
+            return
         
     def dataReceived(self, data: bytes):
         """Handle incoming TCP DNS data"""
@@ -651,9 +667,10 @@ class DNSTCPProtocol(protocol.Protocol):
 class DNSTCPFactory(protocol.Factory):
     """Factory for creating TCP DNS protocol instances"""
     
-    def __init__(self, resolver: DNSProxyResolver):
+    def __init__(self, resolver: DNSProxyResolver, rate_limiter: RateLimiter = None):
         self.resolver = resolver
+        self.rate_limiter = rate_limiter or RateLimiter()
     
     def buildProtocol(self, addr):
         """Build a new TCP protocol instance"""
-        return DNSTCPProtocol(self.resolver)
+        return DNSTCPProtocol(self.resolver, self.rate_limiter)

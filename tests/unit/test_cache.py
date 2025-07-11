@@ -13,7 +13,7 @@ class TestDNSCache:
         """Test cache initializes with correct defaults"""
         cache = DNSCache(max_size=100)
         assert cache.max_size == 100
-        assert len(cache.cache) == 0
+        assert len(cache) == 0  # DNSCache has __len__ method
     
     def test_cache_set_and_get(self):
         """Test basic cache set and get operations"""
@@ -76,7 +76,7 @@ class TestDNSCache:
         # Should be empty
         assert cache.get("key1") is None
         assert cache.get("key2") is None
-        assert len(cache.cache) == 0
+        assert len(cache) == 0  # DNSCache has __len__ method
 
 
 if __name__ == "__main__":
