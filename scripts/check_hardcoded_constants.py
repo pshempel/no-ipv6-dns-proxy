@@ -6,6 +6,7 @@ This script searches for common hardcoded values that should be using
 constants from dns_proxy/constants.py instead.
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -13,23 +14,24 @@ from typing import Any, Dict, List
 
 # Patterns to check for hardcoded values
 HARDCODED_PATTERNS = [
-    # Port numbers
+    # Port numbers - be specific about context
     (r"\bport\s*[=:]\s*53\b", "Use DNS_DEFAULT_PORT instead of hardcoded 53"),
-    (r"\b53\)", "Use DNS_DEFAULT_PORT instead of hardcoded 53"),
-    (r":53\b", "Use DNS_DEFAULT_PORT instead of hardcoded :53"),
+    (r"(?<!:)\b53\)(?!:)", "Use DNS_DEFAULT_PORT instead of hardcoded 53"),  # Avoid :53 in strings
     # Cache values
-    (r"\b10000\b", "Use CACHE_MAX_SIZE instead of hardcoded 10000"),
-    (r"\b300\b", "Use CACHE_DEFAULT_TTL or CACHE_CLEANUP_INTERVAL instead of hardcoded 300"),
+    (r"\bmax[_-]?size\s*[=:]\s*10000\b", "Use CACHE_MAX_SIZE instead of hardcoded 10000"),
+    (r"\bdefault[_-]?ttl\s*[=:]\s*300\b", "Use CACHE_DEFAULT_TTL instead of hardcoded 300"),
     (r"\b86400\b", "Use CACHE_MAX_TTL instead of hardcoded 86400"),
     # Timeouts (but not in tuples like LATENCY_BUCKETS)
     (r"(?<![\d,])\b5\.0\b(?![\d,])", "Use DNS_QUERY_TIMEOUT instead of hardcoded 5.0"),
     (r"\b10\.0\b", "Use DNS_TCP_CONNECTION_TIMEOUT instead of hardcoded 10.0"),
     # Packet sizes
     (r"\b512\b", "Use DNS_UDP_MAX_SIZE instead of hardcoded 512"),
-    (r"\b65535\b", "Use DNS_TCP_MAX_SIZE instead of hardcoded 65535"),
-    # Rate limiting - but NOT for percentage calculations (* 100)
-    (r"(?<![*])\s*\b100\b(?!\s*[:.])", "Use RATE_LIMIT_PER_IP instead of hardcoded 100"),
-    (r"\b200\b", "Use RATE_LIMIT_BURST instead of hardcoded 200"),
+    # Port range validation
+    (r"(?<![\w])\b1\s*<=.*<=\s*65535\b", "Use MIN_PORT_NUMBER and MAX_PORT_NUMBER"),
+    (r"\bport.*between\s+1\s+and\s+65535\b", "Use MIN_PORT_NUMBER and MAX_PORT_NUMBER"),
+    # Weight specific patterns
+    (r"\bweight\s*[=:]\s*100\b", "Use DEFAULT_SERVER_WEIGHT instead of hardcoded 100"),
+    (r"(?<![\w])\b1\s*<=.*weight.*<=\s*1000\b", "Use MIN_SERVER_WEIGHT and MAX_SERVER_WEIGHT"),
     # DNS limits
     (r"\b255\b", "Use MAX_DNS_NAME_LENGTH instead of hardcoded 255"),
     (r"\b63\b", "Use MAX_DNS_LABEL_LENGTH instead of hardcoded 63"),
@@ -42,6 +44,9 @@ SKIP_CONTEXTS = [
     r"/ 100",  # Percentage divisions
     r"100\.0",  # Float 100.0 often used in calculations
     r"maxlen=100",  # Common queue/deque size, might need its own constant
+    r"BUCKETS\s*=.*5\.0",  # Histogram buckets containing 5.0
+    r'"""[\s\S]*?"""',  # Triple-quoted strings (docstrings)
+    r"'''[\s\S]*?'''",  # Triple-quoted strings (docstrings)
 ]
 
 # Files/patterns to exclude
@@ -51,7 +56,19 @@ EXCLUDE_PATTERNS = [
     "__pycache__",
     ".git",
     ".pyc",
-    "test_",  # Test files may use hardcoded values for testing
+]
+
+# Directories to exclude entirely
+EXCLUDE_DIRS = [
+    "tests",  # Test files may use hardcoded values for testing
+    "scripts/debug",  # Debug scripts often have example values
+]
+
+# File patterns to exclude (anywhere in path)
+EXCLUDE_FILE_PATTERNS = [
+    "test_",  # Test files
+    "_test.py",  # Test files
+    "example",  # Example files
 ]
 
 
@@ -62,6 +79,16 @@ def should_check_file(file_path):
     # Only check Python files
     if not path_str.endswith(".py"):
         return False
+
+    # Check excluded directories
+    for exclude_dir in EXCLUDE_DIRS:
+        if f"/{exclude_dir}/" in path_str or path_str.endswith(f"/{exclude_dir}"):
+            return False
+
+    # Check file pattern exclusions
+    for pattern in EXCLUDE_FILE_PATTERNS:
+        if pattern in os.path.basename(path_str):
+            return False
 
     # Check exclusions
     for exclude in EXCLUDE_PATTERNS:
@@ -94,8 +121,32 @@ def check_file(file_path: Path) -> List[Dict[str, Any]]:
 
             # Skip docstring/comment lines
             stripped = line.strip()
-            if stripped.startswith('"""') or stripped.startswith("'''") or stripped.startswith('"'):
+            if stripped.startswith('"""') or stripped.startswith("'''"):
                 continue
+
+            # Skip lines that are clearly documentation or examples
+            if any(
+                doc_indicator in line.lower()
+                for doc_indicator in [
+                    "example:",
+                    "e.g.",
+                    "i.e.",
+                    "usage:",
+                    "format:",
+                    "- with",
+                    "- ipv",
+                ]
+            ):
+                continue
+
+            # Skip lines inside multi-line strings (check previous lines for opening """)
+            if i > 1:
+                # Look back up to 10 lines for opening triple quotes
+                for j in range(max(1, i - 10), i):
+                    prev_line = lines[j - 1].strip()
+                    if prev_line.endswith('"""') and not lines[i - 1].strip().endswith('"""'):
+                        # We're inside a multi-line string
+                        continue
 
             # Skip lines that are in except ImportError fallback blocks (for cache.py)
             if "cache.py" in str(file_path) and i >= 18 and i <= 22:

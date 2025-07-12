@@ -10,22 +10,22 @@ visibility and modification. This follows the principle of making code
 easy to understand and debug.
 """
 
-#=============================================================================
+# =============================================================================
 # DNS PROTOCOL CONSTANTS
-#=============================================================================
+# =============================================================================
 DNS_DEFAULT_PORT = 53
 DNS_UDP_MAX_SIZE = 512  # RFC 1035 standard UDP DNS message size
 DNS_TCP_MAX_SIZE = 65535  # Maximum TCP DNS message size
 
-#=============================================================================
+# =============================================================================
 # TIMEOUT SETTINGS
-#=============================================================================
+# =============================================================================
 DNS_QUERY_TIMEOUT = 5.0  # Seconds to wait for DNS response
 DNS_TCP_CONNECTION_TIMEOUT = 10.0  # TCP connection timeout
 
-#=============================================================================
+# =============================================================================
 # CACHE SETTINGS
-#=============================================================================
+# =============================================================================
 # Cache size limits
 CACHE_MAX_SIZE = 10000  # Maximum number of entries in cache
 CACHE_DEFAULT_TTL = 300  # Default TTL if none specified (5 minutes)
@@ -39,39 +39,39 @@ CACHE_NEGATIVE_TTL = 60  # TTL for negative responses (NXDOMAIN)
 CACHE_CLEANUP_INTERVAL = 300  # Run cleanup every 5 minutes
 CACHE_CLEANUP_PROBABILITY = 0.1  # 10% chance to run cleanup on get()
 
-#=============================================================================
+# =============================================================================
 # CNAME FLATTENING
-#=============================================================================
+# =============================================================================
 MAX_CNAME_RECURSION_DEPTH = 10  # Maximum CNAME chain depth to follow
 CNAME_DEFAULT_TTL = 300  # Default TTL for CNAME records
 
-#=============================================================================
+# =============================================================================
 # QUERY TYPES ALLOWED
-#=============================================================================
+# =============================================================================
 # Only these query types are processed, others are rejected
 ALLOWED_QUERY_TYPES = {
-    1,   # A
-    2,   # NS
-    5,   # CNAME
-    6,   # SOA
+    1,  # A
+    2,  # NS
+    5,  # CNAME
+    6,  # SOA
     12,  # PTR
     15,  # MX
     16,  # TXT
     28,  # AAAA
     33,  # SRV
-    255  # ANY
+    255,  # ANY
 }
 
-#=============================================================================
+# =============================================================================
 # LOGGING AND DEBUGGING
-#=============================================================================
+# =============================================================================
 LOG_QUERY_DETAILS = True  # Log detailed query information
 LOG_CACHE_OPERATIONS = True  # Log cache hits/misses
 MAX_LOG_PAYLOAD_LENGTH = 100  # Truncate logged payloads to this length
 
-#=============================================================================
+# =============================================================================
 # SECURITY SETTINGS
-#=============================================================================
+# =============================================================================
 # Rate limiting (not yet implemented)
 RATE_LIMIT_PER_IP = 100  # Queries per second per IP
 RATE_LIMIT_BURST = 200  # Burst allowance
@@ -83,3 +83,18 @@ MIN_DNS_PACKET_SIZE = 12  # Minimum valid DNS packet (header only)
 MAX_DNS_PACKET_SIZE = 65535  # Maximum DNS message size (TCP)
 MAX_DNS_QUESTIONS = 10  # Reasonable limit on questions per query
 MAX_DNS_ANSWERS = 100  # Reasonable limit on answers per response
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+# Weight and priority settings for upstream servers
+DEFAULT_SERVER_WEIGHT = 100  # Default weight (1-1000 range)
+MIN_SERVER_WEIGHT = 1  # Minimum server weight
+MAX_SERVER_WEIGHT = 1000  # Maximum server weight
+DEFAULT_SERVER_PRIORITY = 1  # Default priority (1-10, lower = preferred)
+MIN_SERVER_PRIORITY = 1  # Minimum server priority
+MAX_SERVER_PRIORITY = 10  # Maximum server priority
+
+# Port range validation
+MIN_PORT_NUMBER = 1  # Minimum valid port number
+MAX_PORT_NUMBER = 65535  # Maximum valid port number

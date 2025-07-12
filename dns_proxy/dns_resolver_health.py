@@ -150,8 +150,8 @@ class HealthAwareDNSResolver(DNSProxyResolver):
                 for fallback in fallback_servers[1:]:  # Skip the first (already tried)
                     try:
                         resolver = client.Resolver(servers=[fallback])
-                        resolver.timeout = (timeout,)
-                        result = yield resolver._lookup(name, cls, type, timeout)
+                        resolver.timeout = (DNS_QUERY_TIMEOUT,)
+                        result = yield resolver._lookup(name, cls, type, DNS_QUERY_TIMEOUT)
 
                         # Find server name for logging
                         for health in all_servers:
