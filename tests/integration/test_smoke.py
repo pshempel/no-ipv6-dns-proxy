@@ -31,6 +31,14 @@ listen-address = 127.0.0.1
 listen-port = 0
 server-addresses = 8.8.8.8
 remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test.pid
+
+[log-file]
+log-file = /tmp/dns-proxy-test.log
+debug-level = INFO
+syslog = false
 """
             )
             config_file = f.name
@@ -70,7 +78,18 @@ remove-aaaa = yes
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
             f.write(
                 """[dns-proxy]
-port = invalid_port_number
+listen-address = 127.0.0.1
+listen-port = invalid_port_number
+server-addresses = 8.8.8.8
+remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test.pid
+
+[log-file]
+log-file = /tmp/dns-proxy-test.log
+debug-level = INFO
+syslog = false
 """
             )
             config_file = f.name
@@ -82,8 +101,9 @@ port = invalid_port_number
 
             # Should fail with non-zero exit code
             assert result.returncode != 0, "Server started with invalid config"
-            # Should have error message
-            assert "error" in result.stderr.lower() or "invalid" in result.stderr.lower()
+            # Should have error message (could be in stdout or stderr)
+            error_output = (result.stdout + result.stderr).lower()
+            assert "error" in error_output or "invalid" in error_output
 
         finally:
             os.unlink(config_file)
