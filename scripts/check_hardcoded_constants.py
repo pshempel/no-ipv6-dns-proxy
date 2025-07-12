@@ -9,7 +9,7 @@ constants from dns_proxy/constants.py instead.
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # Patterns to check for hardcoded values
 HARDCODED_PATTERNS = [
