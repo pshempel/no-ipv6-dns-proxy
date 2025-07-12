@@ -4,6 +4,7 @@
 from typing import List, Tuple
 import configparser
 from dns_proxy.config import DNSProxyConfig
+from dns_proxy.constants import DNS_DEFAULT_PORT
 
 class DNSProxyConfigMulti(DNSProxyConfig):
     """Extended config class with multiple DNS server support"""
@@ -25,7 +26,7 @@ class DNSProxyConfigMulti(DNSProxyConfig):
         # Try new multi-server format first
         server_addresses = self.get('forwarder-dns', 'server-addresses')
         if server_addresses:
-            default_port = self.getint('forwarder-dns', 'server-port', 53)
+            default_port = self.getint('forwarder-dns', 'server-port', DNS_DEFAULT_PORT)
             
             for addr in server_addresses.split(','):
                 addr = addr.strip()
@@ -40,11 +41,11 @@ class DNSProxyConfigMulti(DNSProxyConfig):
             # Fallback to legacy single server format
             server_address = self.get('forwarder-dns', 'server-address')
             if server_address:
-                port = self.getint('forwarder-dns', 'server-port', 53)
+                port = self.getint('forwarder-dns', 'server-port', DNS_DEFAULT_PORT)
                 servers.append((server_address, port))
             else:
                 # Ultimate fallback to default
-                servers.append(('1.1.1.1', 53))
+                servers.append(('1.1.1.1', DNS_DEFAULT_PORT))
         
         return servers
     
@@ -131,7 +132,7 @@ server-port = 53
         server_addresses = config.get('forwarder-dns', 'server-addresses', fallback=None)
         
         if server_addresses:
-            default_port = config.getint('forwarder-dns', 'server-port', fallback=53)
+            default_port = config.getint('forwarder-dns', 'server-port', fallback=DNS_DEFAULT_PORT)
             for addr in server_addresses.split(','):
                 addr = addr.strip()
                 # Simple parsing for demo
@@ -147,7 +148,7 @@ server-port = 53
         else:
             # Legacy format
             server = config.get('forwarder-dns', 'server-address', fallback='1.1.1.1')
-            port = config.getint('forwarder-dns', 'server-port', fallback=53)
+            port = config.getint('forwarder-dns', 'server-port', fallback=DNS_DEFAULT_PORT)
             servers.append((server, port))
         
         print("\nParsed servers:")

@@ -16,6 +16,7 @@ from prometheus_client import Counter, Histogram, Gauge, Info
 from prometheus_client.twisted import MetricsResource
 from twisted.web import server
 from twisted.internet import reactor
+from .constants import CACHE_MAX_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +256,7 @@ class MetricsCollector:
             self.info.info({
                 'version': version,
                 'remove_aaaa': str(config.get('remove_aaaa', True)),
-                'cache_size': str(config.get('cache_size', 10000)),
+                'cache_size': str(config.get('cache_size', CACHE_MAX_SIZE)),
                 'upstream_server': config.get('upstream_server', 'unknown')
             })
 

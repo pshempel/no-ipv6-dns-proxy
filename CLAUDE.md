@@ -216,6 +216,39 @@ This structure supports future enhancements:
 - No magic numbers buried in code
 - Follows the principle: "Make it obvious what can be configured"
 
+### CRITICAL: No Hardcoded Values
+**NEVER use hardcoded values in code. ALWAYS use constants from constants.py:**
+- ❌ BAD: `port = 53` or `config.getint('port', 53)`
+- ✅ GOOD: `port = DNS_DEFAULT_PORT` or `config.getint('port', DNS_DEFAULT_PORT)`
+- ❌ BAD: `cache_size = 10000`
+- ✅ GOOD: `cache_size = CACHE_MAX_SIZE`
+- ❌ BAD: `timeout = 5.0`
+- ✅ GOOD: `timeout = DNS_QUERY_TIMEOUT`
+
+**Common Constants to Use:**
+- `DNS_DEFAULT_PORT` (53) - Default DNS port
+- `DNS_UDP_MAX_SIZE` (512) - Max UDP packet size
+- `DNS_TCP_MAX_SIZE` (65535) - Max TCP packet size
+- `DNS_QUERY_TIMEOUT` (5.0) - Query timeout in seconds
+- `CACHE_MAX_SIZE` (10000) - Max cache entries
+- `CACHE_DEFAULT_TTL` (300) - Default TTL
+- `CACHE_CLEANUP_INTERVAL` (300) - Cleanup interval
+- `RATE_LIMIT_PER_IP` (100) - Queries/sec per IP
+- `RATE_LIMIT_BURST` (200) - Burst allowance
+
+**Import Pattern:**
+```python
+from dns_proxy.constants import (
+    DNS_DEFAULT_PORT, CACHE_MAX_SIZE, CACHE_DEFAULT_TTL,
+    CACHE_CLEANUP_INTERVAL, DNS_QUERY_TIMEOUT
+)
+```
+
+**Enforcement:**
+- Code reviews should reject any hardcoded values
+- Pre-commit hooks can check for common patterns
+- All new code must import and use constants
+
 ### Python Specifics
 - Follow PEP 8 style guide
 - Use type hints for function parameters and return values

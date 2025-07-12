@@ -3,6 +3,8 @@ import os
 import sys
 import logging
 from typing import Dict, Any, Optional
+# Modified by Claude: 2025-01-11 - Import constants to replace hardcoded values
+from .constants import DNS_DEFAULT_PORT, DNS_QUERY_TIMEOUT, CACHE_MAX_SIZE, CACHE_DEFAULT_TTL, CACHE_MAX_TTL
 
 class DNSProxyConfig:
     """Configuration manager for DNS Proxy"""
@@ -18,17 +20,17 @@ class DNSProxyConfig:
         },
         'forwarder-dns': {
             'server-address': '8.8.8.8',
-            'server-port': '53',
-            'timeout': '5.0'
+            'server-port': str(DNS_DEFAULT_PORT),
+            'timeout': str(DNS_QUERY_TIMEOUT)
         },
         'cname-flattener': {
             'max-recursion': '1000'
         },
         'cache': {
-            'max-size': '10000',
-            'default-ttl': '300',
-            'min-ttl': '60',
-            'max-ttl': '3600'
+            'max-size': str(CACHE_MAX_SIZE),
+            'default-ttl': str(CACHE_DEFAULT_TTL),
+            'min-ttl': '0',
+            'max-ttl': str(CACHE_MAX_TTL)
         },
         'log-file': {
             'log-file': '/var/log/dns-proxy/dns-proxy.log',
@@ -111,7 +113,7 @@ class DNSProxyConfig:
         server_addresses = self.get('forwarder-dns', 'server-addresses')
         if server_addresses:
             # Get default port for servers without explicit port
-            default_port = self.getint('forwarder-dns', 'server-port', 53)
+            default_port = self.getint('forwarder-dns', 'server-port', DNS_DEFAULT_PORT)
             
             # Split by comma and process each server
             for server_spec in server_addresses.split(','):
@@ -155,7 +157,7 @@ class DNSProxyConfig:
         # Fall back to old single server format
         if not servers:
             server_address = self.get('forwarder-dns', 'server-address', '8.8.8.8')
-            server_port = self.getint('forwarder-dns', 'server-port', 53)
+            server_port = self.getint('forwarder-dns', 'server-port', DNS_DEFAULT_PORT)
             servers.append((server_address, server_port))
         
         return servers

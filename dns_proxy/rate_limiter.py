@@ -13,7 +13,7 @@ import time
 import logging
 from typing import Dict, Tuple
 from collections import defaultdict
-from dns_proxy.constants import RATE_LIMIT_PER_IP, RATE_LIMIT_BURST
+from dns_proxy.constants import RATE_LIMIT_PER_IP, RATE_LIMIT_BURST, CACHE_CLEANUP_INTERVAL
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class RateLimiter:
     
     def __init__(self, rate_per_ip: int = RATE_LIMIT_PER_IP, 
                  burst_per_ip: int = RATE_LIMIT_BURST,
-                 cleanup_interval: int = 300):
+                 cleanup_interval: int = CACHE_CLEANUP_INTERVAL):
         """
         Initialize rate limiter
         

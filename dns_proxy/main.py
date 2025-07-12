@@ -11,6 +11,12 @@ import signal
 import logging
 import logging.handlers
 
+# Modified by Claude: 2025-01-11 - Import constants to replace hardcoded values
+from dns_proxy.constants import (
+    DNS_DEFAULT_PORT, CACHE_MAX_SIZE, CACHE_DEFAULT_TTL,
+    CACHE_CLEANUP_INTERVAL, DNS_QUERY_TIMEOUT
+)
+
 def setup_logging(log_file=None, log_level='INFO', syslog=False, user=None, group=None):
     """Setup logging configuration with proper ownership"""
     numeric_level = getattr(logging, log_level.upper(), logging.INFO)
@@ -92,7 +98,7 @@ def _setup_signal_handlers(logger):
 
 def _get_bind_config(config, args):
     """Get bind configuration from config and args"""
-    listen_port = args.port or config.getint('dns-proxy', 'listen-port', 53)
+    listen_port = args.port or config.getint('dns-proxy', 'listen-port', DNS_DEFAULT_PORT)
     listen_address = args.address or config.get('dns-proxy', 'listen-address', '0.0.0.0')
     user = config.get('dns-proxy', 'user', 'dns-proxy')
     group = config.get('dns-proxy', 'group', 'dns-proxy')
@@ -360,7 +366,7 @@ def _get_logging_config(config, args):
 def _get_resolver_config(config, args):
     """Get resolver configuration from config and args"""
     # Modified by Claude: 2025-01-11 - Added support for multiple upstream DNS servers
-    listen_port = args.port or config.getint('dns-proxy', 'listen-port', 53)
+    listen_port = args.port or config.getint('dns-proxy', 'listen-port', DNS_DEFAULT_PORT)
     listen_address = args.address or config.get('dns-proxy', 'listen-address', '0.0.0.0')
     
     # Get upstream servers using the new method
@@ -375,7 +381,7 @@ def _get_resolver_config(config, args):
             try:
                 port = int(port)
             except ValueError:
-                port = 53
+                port = DNS_DEFAULT_PORT
             upstream_servers = [(host, port)]
         elif args.upstream.startswith('[') and ']:' in args.upstream:
             # IPv6 with port
@@ -385,16 +391,16 @@ def _get_resolver_config(config, args):
             try:
                 port = int(port_str)
             except ValueError:
-                port = 53
+                port = DNS_DEFAULT_PORT
             upstream_servers = [(host, port)]
         else:
             # No port specified, use default
-            upstream_servers = [(args.upstream, 53)]
+            upstream_servers = [(args.upstream, DNS_DEFAULT_PORT)]
     
     max_recursion = config.getint('cname-flattener', 'max-recursion', 1000)
     remove_aaaa = config.getboolean('cname-flattener', 'remove-aaaa', True)
-    cache_max_size = config.getint('cache', 'max-size', 10000)
-    cache_default_ttl = config.getint('cache', 'default-ttl', 300)
+    cache_max_size = config.getint('cache', 'max-size', CACHE_MAX_SIZE)
+    cache_default_ttl = config.getint('cache', 'default-ttl', CACHE_DEFAULT_TTL)
     
     return {
         'listen_port': listen_port,
