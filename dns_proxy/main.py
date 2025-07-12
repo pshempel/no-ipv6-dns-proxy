@@ -454,6 +454,7 @@ def _parse_arguments():
         "Examples: 1.1.1.1, 8.8.8.8:53, [2606:4700:4700::1111]:53",
     )
     parser.add_argument("-d", "--daemonize", action="store_true", help="Run as daemon")
+    parser.add_argument("-f", "--foreground", action="store_true", help="Run in foreground (opposite of --daemonize, useful for testing)")
     parser.add_argument("-v", "--version", action="store_true", help="Show version")
     parser.add_argument("--pidfile", help="PID file path")
 
@@ -722,6 +723,11 @@ def _initialize_resolver(resolver_config, args):
 
 def _handle_daemonization(args, log_file):
     """Handle daemonization if requested"""
+    # If --foreground is specified, never daemonize regardless of --daemonize
+    if args.foreground:
+        logging.getLogger("dns_proxy").info("Running in foreground mode (--foreground specified)")
+        return
+    
     if not args.daemonize:
         return
 

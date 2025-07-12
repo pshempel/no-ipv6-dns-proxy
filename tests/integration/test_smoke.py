@@ -28,7 +28,7 @@ class TestSmoke:
             f.write(
                 """[dns-proxy]
 listen-address = 127.0.0.1
-port = 0
+listen-port = 0
 server-addresses = 8.8.8.8
 remove-aaaa = yes
 """

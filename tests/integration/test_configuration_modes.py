@@ -52,19 +52,19 @@ server-addresses = 8.8.8.8
             # IPv4 only
             """[dns-proxy]
 listen-address = 127.0.0.1
-port = 0
+listen-port = 0
 server-addresses = 8.8.8.8
 """,
             # IPv6 only
             """[dns-proxy]
 listen-address = ::1
-port = 0
+listen-port = 0
 server-addresses = 8.8.8.8
 """,
             # Dual stack
             """[dns-proxy]
 listen-address = ::
-port = 0
+listen-port = 0
 server-addresses = 8.8.8.8
 """,
         ]
@@ -93,7 +93,7 @@ server-addresses = 8.8.8.8
         """Test human-friendly configuration format"""
         config = """[dns-proxy]
 listen-address = 127.0.0.1
-port = 0
+listen-port = 0
 remove-aaaa = yes
 
 [upstream:google-primary]
@@ -150,7 +150,7 @@ server-addresses = 8.8.8.8
             # No forwarder
             (
                 """[dns-proxy]
-port = 0
+listen-port = 0
 """,
                 "no forwarder",
             ),
@@ -204,7 +204,7 @@ remove-aaaa = maybe
 
         base_config = """[dns-proxy]
 listen-address = 127.0.0.1
-port = 0
+listen-port = 0
 remove-aaaa = yes
 
 [upstream:primary]
