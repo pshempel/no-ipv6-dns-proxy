@@ -77,7 +77,7 @@ class DNSCache:
             self._stats["misses"] += 1
             return None
 
-    def set(self, key: str, data: Any, ttl: Optional[int] = None):
+    def set(self, key: str, data: Any, ttl: Optional[int] = None) -> None:
         """Cache DNS response"""
         with self._lock:
             if ttl is None:

@@ -82,7 +82,7 @@ class RateLimiter:
         self.last_cleanup = time.time()
 
         # Track statistics
-        self.stats = defaultdict(int)
+        self.stats: Dict[str, int] = defaultdict(int)
 
     def is_allowed(self, ip_address: str) -> bool:
         """

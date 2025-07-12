@@ -7,7 +7,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 
-def drop_privileges(user: str, group: str):
+def drop_privileges(user: str, group: str) -> None:
     """Drop root privileges to specified user/group"""
     if os.getuid() != 0:
         logger.info("Not running as root, skipping privilege drop")
@@ -35,7 +35,7 @@ def drop_privileges(user: str, group: str):
         sys.exit(1)
 
 
-def create_pid_file(pid_file: str):
+def create_pid_file(pid_file: str) -> None:
     """Create PID file with directory validation"""
     try:
         # Ensure directory exists
@@ -57,7 +57,7 @@ def create_pid_file(pid_file: str):
         logger.error(f"Failed to create PID file {pid_file}: {e}")
 
 
-def remove_pid_file(pid_file: str):
+def remove_pid_file(pid_file: str) -> None:
     """Remove PID file"""
     try:
         if os.path.exists(pid_file):

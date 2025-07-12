@@ -556,8 +556,8 @@ def _initialize_resolver(resolver_config, args):
             from dns_proxy.dns_resolver_health import HealthAwareDNSResolver
 
             # Check if we're using HumanFriendlyConfig
-            if hasattr(resolver_config, "config_obj") and isinstance(
-                resolver_config.get("config_obj"), HumanFriendlyConfig
+            if "config_obj" in resolver_config and isinstance(
+                resolver_config["config_obj"], HumanFriendlyConfig
             ):
                 logger.info(
                     f"Using health-aware DNS resolver with {args.selection_strategy} strategy"
