@@ -128,23 +128,27 @@ def check_file(file_path):
     return violations
 
 def main():
-    """Main function to check all Python files in dns_proxy directory."""
+    """Main function to check all Python files in dns_proxy, tests, and scripts directories."""
     # Get the project root
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
-    dns_proxy_dir = project_root / 'dns_proxy'
     
-    if not dns_proxy_dir.exists():
-        print(f"Error: dns_proxy directory not found at {dns_proxy_dir}")
-        sys.exit(1)
+    # Directories to check
+    check_dirs = ['dns_proxy', 'tests', 'scripts']
     
     # Find all Python files
     all_violations = []
     
-    for py_file in dns_proxy_dir.rglob('*.py'):
-        if should_check_file(py_file):
-            violations = check_file(py_file)
-            all_violations.extend(violations)
+    for dir_name in check_dirs:
+        dir_path = project_root / dir_name
+        if not dir_path.exists():
+            print(f"Warning: {dir_name} directory not found at {dir_path}")
+            continue
+        
+        for py_file in dir_path.rglob('*.py'):
+            if should_check_file(py_file):
+                violations = check_file(py_file)
+                all_violations.extend(violations)
     
     # Report results
     if all_violations:

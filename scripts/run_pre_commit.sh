@@ -1,0 +1,12 @@
+#!/bin/bash
+# Wrapper script to run pre-commit with conda environment
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to project root
+cd "$PROJECT_ROOT" || exit 1
+
+# Pass all arguments to pre-commit through conda
+priv_tools/project_run.sh pre-commit "$@"
