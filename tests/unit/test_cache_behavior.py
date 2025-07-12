@@ -27,7 +27,7 @@ class TestCacheBehavior(unittest.TestCase):
         self.cache = DNSCache(max_size=100, default_ttl=300)
         self.mock_resolver = Mock()
         self.proxy_resolver = DNSProxyResolver(
-            upstream_server="1.1.1.1",  # Using Cloudflare DNS
+            upstream_servers=[(r"1.1.1.1", 53)],  # Using Cloudflare DNS
             upstream_port=53,
             remove_aaaa=True,
             cache=self.cache,
@@ -198,7 +198,7 @@ class TestCacheIntegration(unittest.TestCase):
     def setUp(self):
         self.cache = DNSCache()
         self.resolver = DNSProxyResolver(
-            upstream_server="1.1.1.1",  # Using Cloudflare DNS
+            upstream_servers=[(r"1.1.1.1", 53)],  # Using Cloudflare DNS
             upstream_port=53,
             remove_aaaa=True,
             cache=self.cache,

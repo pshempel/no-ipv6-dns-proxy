@@ -83,7 +83,7 @@ class TestAllModes:
         config = """[dns-proxy]
 listen-address = 127.0.0.1
 port = {port}
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 remove-aaaa = yes
 
 [cache]
@@ -122,7 +122,7 @@ cache-size = 100
         config = """[dns-proxy]
 listen-address = 127.0.0.1
 port = {port}
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 remove-aaaa = no
 
 [cache]
@@ -165,7 +165,7 @@ cache-size = 100
             config = f"""[dns-proxy]
 listen-address = 127.0.0.1
 port = {{port}}
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 remove-aaaa = {remove_aaaa}
 
 [cache]
@@ -291,7 +291,7 @@ note = Wrong port (connection refused)
         config = """[dns-proxy]
 listen-address = 127.0.0.1
 port = {port}
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 remove-aaaa = yes
 
 [cache]

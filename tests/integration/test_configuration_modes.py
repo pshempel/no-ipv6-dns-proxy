@@ -23,7 +23,7 @@ class TestConfigurationModes:
     def test_minimal_config(self):
         """Test with absolute minimal configuration"""
         config = """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
@@ -53,19 +53,19 @@ forwarder-dns = 8.8.8.8
             """[dns-proxy]
 listen-address = 127.0.0.1
 port = 0
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """,
             # IPv6 only
             """[dns-proxy]
 listen-address = ::1
 port = 0
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """,
             # Dual stack
             """[dns-proxy]
 listen-address = ::
 port = 0
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """,
         ]
 
@@ -143,7 +143,7 @@ health-check = no
             (
                 """[dns-proxy]
 port = 99999
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """,
                 "invalid port",
             ),
@@ -157,7 +157,7 @@ port = 15353
             # Invalid IP
             (
                 """[dns-proxy]
-forwarder-dns = 999.999.999.999
+server-addresses = 999.999.999.999
 """,
                 "invalid IP",
             ),
@@ -171,7 +171,7 @@ something = value
             # Invalid remove-aaaa value
             (
                 """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 remove-aaaa = maybe
 """,
                 "invalid boolean",
@@ -246,14 +246,14 @@ priority = 2
         cache_configs = [
             # Minimal cache
             """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 
 [cache]
 cache-size = 10
 """,
             # Large cache
             """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 
 [cache]
 cache-size = 50000
@@ -262,7 +262,7 @@ negative-cache-ttl = 60
 """,
             # No cache section (should use defaults)
             """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 """,
         ]
 
@@ -293,7 +293,7 @@ forwarder-dns = 8.8.8.8
         log_configs = [
             # File logging
             f"""[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 
 [log-file]
 log-file = {log_file}
@@ -301,14 +301,14 @@ log-level = DEBUG
 """,
             # Console only
             """[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 
 [log-console]
 log-level = INFO
 """,
             # Both file and console
             f"""[dns-proxy]
-forwarder-dns = 8.8.8.8
+server-addresses = 8.8.8.8
 
 [log-file]
 log-file = {log_file}

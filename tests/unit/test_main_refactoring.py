@@ -125,7 +125,7 @@ class TestMainRefactoring:
 
         assert config["listen_port"] == 53
         assert config["listen_address"] == "0.0.0.0"
-        assert config["upstream_server"] == "1.1.1.1"
+        assert config["upstream_servers"] == "1.1.1.1"
         assert config["upstream_port"] == 53
         assert config["max_recursion"] == 1000
         assert config["remove_aaaa"] == True
