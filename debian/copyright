@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: dns-proxy
-Source: https://github.com/example/dns-proxy
+Source: https://github.com/pshempel/no-ipv6-dns-proxy
 
 Files: *
 Copyright: 2025 DNS Proxy Team

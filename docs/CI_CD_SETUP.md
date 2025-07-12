@@ -132,7 +132,7 @@ Since you have both:
 
 ```bash
 # In your GitLab repo
-git remote add github https://github.com/yourusername/dns-proxy.git
+git remote add github https://github.com/pshempel/no-ipv6-dns-proxy.git
 
 # Push to both
 git push origin main

@@ -32,7 +32,7 @@ setup(
     long_description_content_type="text/markdown",
     author=__author__,
     author_email=__email__,
-    url="https://github.com/pshempel/dns-proxy",
+    url="https://github.com/pshempel/no-ipv6-dns-proxy",
     packages=find_packages(),
     include_package_data=True,
     install_requires=read_requirements(),

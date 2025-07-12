@@ -72,7 +72,7 @@ Before releasing:
 Users can install releases with:
 ```bash
 # Download from GitHub releases
-wget https://github.com/YOUR_REPO/releases/download/v1.2.2/dns-proxy_1.2.2-1_all.deb
+wget https://github.com/pshempel/no-ipv6-dns-proxy/releases/download/v1.2.2/dns-proxy_1.2.2-1_all.deb
 
 # Install
 sudo dpkg -i dns-proxy_1.2.2-1_all.deb

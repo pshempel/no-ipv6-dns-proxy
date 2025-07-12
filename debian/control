@@ -10,9 +10,9 @@ Build-Depends: debhelper-compat (= 13),
                python3-openssl (>= 18.0.0),
                python3-service-identity (>= 18.1.0)
 Standards-Version: 4.6.2
-Homepage: https://github.com/pshempel/dns-proxy
-Vcs-Browser: https://github.com/pshempel/dns-proxy
-Vcs-Git: https://github.com/pshempel/dns-proxy.git
+Homepage: https://github.com/pshempel/no-ipv6-dns-proxy
+Vcs-Browser: https://github.com/pshempel/no-ipv6-dns-proxy
+Vcs-Git: https://github.com/pshempel/no-ipv6-dns-proxy.git
 Rules-Requires-Root: no
 
 Package: dns-proxy
