@@ -164,8 +164,22 @@ def _bind_dual_stack_single_socket(reactor, listen_port, udp_protocol, tcp_facto
 
     try:
         udp_server = reactor.listenUDP(listen_port, udp_protocol, interface="::")
-        tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface="::")
-        logger.info(f"DNS Proxy dual-stack servers listening on [::]:{listen_port} (UDP + TCP)")
+
+        # Get actual port if port 0 was used
+        actual_udp_port = udp_server.getHost().port
+
+        # For TCP, we need to use the same port as UDP got
+        tcp_port = actual_udp_port if listen_port == 0 else listen_port
+        tcp_server = reactor.listenTCP(tcp_port, tcp_factory, interface="::")
+
+        logger.info(f"DNS Proxy dual-stack servers listening on [::]:{actual_udp_port} (UDP + TCP)")
+
+        # If port 0 was used, report the actual port
+        if listen_port == 0:
+            logger.info(f"Dynamic port allocation: actual port is {actual_udp_port}")
+            # Write to stdout for test scripts to capture
+            print(f"ACTUAL_PORT={actual_udp_port}")
+
         return [(udp_server, tcp_server)]
     except Exception as e:
         _handle_bind_error(e, listen_port, "::", logger)
@@ -188,22 +202,32 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
 
     # Start IPv6 servers first (they're pickier about binding)
     # Modified by Claude: 2025-01-12 - Add error handling for port binding
+    actual_port = listen_port
     try:
         udp_server_v6 = reactor.listenUDP(listen_port, udp_protocol_v6, interface="::")
+        actual_port = udp_server_v6.getHost().port
+
         tcp_factory_v6 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
-        tcp_server_v6 = reactor.listenTCP(listen_port, tcp_factory_v6, interface="::")
-        logger.info(f"DNS Proxy IPv6 servers listening on [::]:{listen_port} (UDP + TCP)")
+        tcp_server_v6 = reactor.listenTCP(actual_port, tcp_factory_v6, interface="::")
+        logger.info(f"DNS Proxy IPv6 servers listening on [::]:{actual_port} (UDP + TCP)")
         servers.append((udp_server_v6, tcp_server_v6))
     except Exception as e:
         _handle_bind_error(e, listen_port, "::", logger)
 
     # Start IPv4 servers with SO_REUSEADDR
     try:
-        udp_server_v4 = reactor.listenUDP(listen_port, udp_protocol, interface="0.0.0.0")
+        # Use the same port as IPv6 got (important for port 0)
+        udp_server_v4 = reactor.listenUDP(actual_port, udp_protocol, interface="0.0.0.0")
         tcp_factory_v4 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
-        tcp_server_v4 = reactor.listenTCP(listen_port, tcp_factory_v4, interface="0.0.0.0")
-        logger.info(f"DNS Proxy IPv4 servers listening on 0.0.0.0:{listen_port} (UDP + TCP)")
+        tcp_server_v4 = reactor.listenTCP(actual_port, tcp_factory_v4, interface="0.0.0.0")
+        logger.info(f"DNS Proxy IPv4 servers listening on 0.0.0.0:{actual_port} (UDP + TCP)")
         servers.append((udp_server_v4, tcp_server_v4))
+
+        # If port 0 was used, report the actual port
+        if listen_port == 0:
+            logger.info(f"Dynamic port allocation: actual port is {actual_port}")
+            # Write to stdout for test scripts to capture
+            print(f"ACTUAL_PORT={actual_port}")
     except Exception as e:
         logger.error(f"Failed to bind IPv4 servers: {e}")
         logger.warning("Continuing with IPv6-only operation")
@@ -216,10 +240,23 @@ def _bind_single_stack(reactor, listen_port, listen_address, udp_protocol, tcp_f
     # Modified by Claude: 2025-01-12 - Add error handling for port binding
     try:
         udp_server = reactor.listenUDP(listen_port, udp_protocol, interface=listen_address)
-        logger.info(f"DNS Proxy UDP server listening on {listen_address}:{listen_port}")
 
-        tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface=listen_address)
-        logger.info(f"DNS Proxy TCP server listening on {listen_address}:{listen_port}")
+        # Get actual port if port 0 was used
+        actual_udp_port = udp_server.getHost().port
+
+        # For TCP, we need to use the same port as UDP got
+        tcp_port = actual_udp_port if listen_port == 0 else listen_port
+        tcp_server = reactor.listenTCP(tcp_port, tcp_factory, interface=listen_address)
+
+        # Log the actual ports
+        logger.info(f"DNS Proxy UDP server listening on {listen_address}:{actual_udp_port}")
+        logger.info(f"DNS Proxy TCP server listening on {listen_address}:{tcp_port}")
+
+        # If port 0 was used, report the actual port
+        if listen_port == 0:
+            logger.info(f"Dynamic port allocation: actual port is {actual_udp_port}")
+            # Write to stdout for test scripts to capture
+            print(f"ACTUAL_PORT={actual_udp_port}")
 
         return [(udp_server, tcp_server)]
     except Exception as e:

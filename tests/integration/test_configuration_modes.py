@@ -150,7 +150,7 @@ server-addresses = 8.8.8.8
             # No forwarder
             (
                 """[dns-proxy]
-port = 15353
+port = 0
 """,
                 "no forwarder",
             ),

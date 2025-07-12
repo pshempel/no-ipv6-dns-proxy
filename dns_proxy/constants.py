@@ -110,5 +110,5 @@ MIN_SERVER_PRIORITY = 1  # Minimum server priority
 MAX_SERVER_PRIORITY = 10  # Maximum server priority
 
 # Port range validation
-MIN_PORT_NUMBER = 1  # Minimum valid port number
+MIN_PORT_NUMBER = 0  # Minimum valid port number (0 = let OS choose)
 MAX_PORT_NUMBER = 65535  # Maximum valid port number
