@@ -52,25 +52,23 @@ class TestEndToEnd:
 
     def test_server_startup_and_query(self):
         """Test that server starts and responds to DNS queries"""
-        port = find_free_port()
-
-        # Create temporary config
+        # Create temporary config with port 0 for dynamic allocation
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
             f.write(
-                f"""[dns-proxy]
+                """[dns-proxy]
 listen-address = 127.0.0.1
-listen-port = {port}
+listen-port = 0
 server-addresses = 8.8.8.8
 remove-aaaa = yes
 user = runner
 group = runner
-pid-file = /tmp/dns-proxy-test-{port}.pid
+pid-file = /tmp/dns-proxy-test-e2e1.pid
 
 [cache]
 cache-size = 100
 
 [log-file]
-log-file = /tmp/dns-proxy-test-{port}.log
+log-file = /tmp/dns-proxy-test-e2e1.log
 debug-level = INFO
 syslog = false
 """
@@ -78,6 +76,7 @@ syslog = false
             config_file = f.name
 
         server_process = None
+        actual_port = None
         try:
             # Start DNS proxy server
             # In CI, the package should be installed, so use -m
@@ -97,12 +96,34 @@ syslog = false
                 preexec_fn=os.setsid,  # Create new process group
             )
 
-            # Wait for server to start
-            assert wait_for_server(port), f"Server failed to start on port {port}"
+            # Read the actual port from stdout
+            import select
+            import time
+            
+            start_time = time.time()
+            while time.time() - start_time < 10:  # 10 second timeout
+                if server_process.poll() is not None:
+                    stdout, stderr = server_process.communicate()
+                    raise AssertionError(f"Server crashed: {stderr.decode()}")
+                
+                # Check if there's output to read
+                ready, _, _ = select.select([server_process.stdout], [], [], 0.1)
+                if ready:
+                    output = server_process.stdout.readline().decode().strip()
+                    if output.startswith("ACTUAL_PORT="):
+                        actual_port = int(output.split("=")[1])
+                        break
+                time.sleep(0.1)
+            
+            if actual_port is None:
+                raise AssertionError("Could not determine actual port from server output")
+
+            # Wait for server to start accepting connections
+            assert wait_for_server(actual_port), f"Server failed to start on port {actual_port}"
 
             # Test DNS query using dig
             result = subprocess.run(
-                ["dig", "@127.0.0.1", "-p", str(port), "google.com", "A", "+short"],
+                ["dig", "@127.0.0.1", "-p", str(actual_port), "google.com", "A", "+short"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -114,7 +135,7 @@ syslog = false
 
             # Test AAAA filtering
             result_aaaa = subprocess.run(
-                ["dig", "@127.0.0.1", "-p", str(port), "google.com", "AAAA", "+short"],
+                ["dig", "@127.0.0.1", "-p", str(actual_port), "google.com", "AAAA", "+short"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -136,25 +157,23 @@ syslog = false
     @pytest.mark.skipif(not os.path.exists("/usr/bin/dig"), reason="dig not installed")
     def test_cname_flattening(self):
         """Test CNAME flattening functionality"""
-        port = find_free_port()
-
-        # Create config with CNAME flattening
+        # Create config with CNAME flattening using port 0
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
             f.write(
-                f"""[dns-proxy]
+                """[dns-proxy]
 listen-address = 127.0.0.1
-listen-port = {port}
+listen-port = 0
 server-addresses = 8.8.8.8
 remove-aaaa = yes
 user = runner
 group = runner
-pid-file = /tmp/dns-proxy-test-{port}.pid
+pid-file = /tmp/dns-proxy-test-e2e2.pid
 
 [cache]
 cache-size = 100
 
 [log-file]
-log-file = /tmp/dns-proxy-test-{port}.log
+log-file = /tmp/dns-proxy-test-e2e2.log
 debug-level = INFO
 syslog = false
 """
@@ -162,6 +181,7 @@ syslog = false
             config_file = f.name
 
         server_process = None
+        actual_port = None
         try:
             # Start server
             # In CI, the package should be installed, so use -m
@@ -178,11 +198,33 @@ syslog = false
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid
             )
 
-            assert wait_for_server(port), f"Server failed to start on port {port}"
+            # Read the actual port from stdout
+            import select
+            import time
+            
+            start_time = time.time()
+            while time.time() - start_time < 10:  # 10 second timeout
+                if server_process.poll() is not None:
+                    stdout, stderr = server_process.communicate()
+                    raise AssertionError(f"Server crashed: {stderr.decode()}")
+                
+                # Check if there's output to read
+                ready, _, _ = select.select([server_process.stdout], [], [], 0.1)
+                if ready:
+                    output = server_process.stdout.readline().decode().strip()
+                    if output.startswith("ACTUAL_PORT="):
+                        actual_port = int(output.split("=")[1])
+                        break
+                time.sleep(0.1)
+            
+            if actual_port is None:
+                raise AssertionError("Could not determine actual port from server output")
+
+            assert wait_for_server(actual_port), f"Server failed to start on port {actual_port}"
 
             # Query a domain known to have CNAMEs
             result = subprocess.run(
-                ["dig", "@127.0.0.1", "-p", str(port), "www.google.com", "A"],
+                ["dig", "@127.0.0.1", "-p", str(actual_port), "www.google.com", "A"],
                 capture_output=True,
                 text=True,
                 timeout=5,
