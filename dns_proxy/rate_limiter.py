@@ -12,7 +12,7 @@ This helps prevent DNS amplification attacks and resource exhaustion.
 import logging
 import time
 from collections import defaultdict
-from typing import Dict, Tuple
+from typing import Dict
 
 from dns_proxy.constants import CACHE_CLEANUP_INTERVAL, RATE_LIMIT_BURST, RATE_LIMIT_PER_IP
 

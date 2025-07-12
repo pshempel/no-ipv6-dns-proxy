@@ -126,7 +126,7 @@ def _check_bindv6only():
 def _bind_dual_stack_single_socket(reactor, listen_port, udp_protocol, tcp_factory, logger):
     """Bind dual-stack server using single IPv6 socket with IPv4 compatibility"""
     logger.info("Starting dual-stack DNS server (IPv6 socket with IPv4 compatibility)")
-    logger.info(f"System bindv6only=0: IPv6 socket will accept IPv4 connections")
+    logger.info("System bindv6only=0: IPv6 socket will accept IPv4 connections")
 
     udp_server = reactor.listenUDP(listen_port, udp_protocol, interface="::")
     tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface="::")
@@ -298,18 +298,14 @@ def start_dns_server(config, args, logger, udp_protocol):
         bindv6only = _check_bindv6only()
 
         if bindv6only == 0:
-            servers = _bind_dual_stack_single_socket(
-                reactor, listen_port, udp_protocol, tcp_factory, logger
-            )
+            _bind_dual_stack_single_socket(reactor, listen_port, udp_protocol, tcp_factory, logger)
         else:
-            servers = _bind_dual_stack_separate_sockets(
+            _bind_dual_stack_separate_sockets(
                 reactor, listen_port, udp_protocol, tcp_factory, logger
             )
     else:
         # Single-stack binding
-        _bind_single_stack(
-            reactor, listen_port, listen_address, udp_protocol, tcp_factory, logger
-        )
+        _bind_single_stack(reactor, listen_port, listen_address, udp_protocol, tcp_factory, logger)
 
     # Setup security callback
     security_callback = _setup_security_context(config, args, logger)

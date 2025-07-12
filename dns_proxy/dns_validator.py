@@ -88,7 +88,8 @@ class DNSValidator:
         for label in labels:
             if label and len(label) > MAX_DNS_LABEL_LENGTH:
                 raise DNSValidationError(
-                    f"DNS label too long: '{label}' is {len(label)} characters (maximum {MAX_DNS_LABEL_LENGTH})"
+                    f"DNS label too long: '{label}' is {len(label)} characters "
+                    f"(maximum {MAX_DNS_LABEL_LENGTH})"
                 )
 
             # Check for valid characters (alphanumeric and hyphen)
