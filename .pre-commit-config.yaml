@@ -51,17 +51,12 @@ repos:
     hooks:
       - id: mypy
         args: [
-          '--ignore-missing-imports',
-          '--no-strict-optional',
-          '--warn-unused-ignores',
-          '--warn-redundant-casts',
-          '--warn-return-any',
-          '--warn-unreachable',
-          '--pretty'
+          '--config-file=mypy.ini'
         ]
         additional_dependencies: [
           'types-requests',
-          'types-PyYAML'
+          'types-PyYAML',
+          'twisted'  # Add twisted for better type checking
         ]
         files: '^(dns_proxy|tests|scripts)/.*\.py$'
 

@@ -140,7 +140,7 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
     from dns_proxy.dns_resolver import DNSProxyProtocol, DNSTCPFactory
 
     logger.info("Starting dual-stack DNS server (separate IPv4 + IPv6 sockets)")
-    logger.info(f"System bindv6only=1: Using separate sockets to avoid conflicts")
+    logger.info("System bindv6only=1: Using separate sockets to avoid conflicts")
 
     servers = []
 
@@ -507,9 +507,9 @@ def _validate_config(resolver_config, logger):
         logger.error("No upstream DNS servers configured")
         sys.exit(1)
 
-    logger.info(f"Configuration loaded:")
+    logger.info("Configuration loaded:")
     logger.info(f"  Listen: {resolver_config['listen_address']}:{resolver_config['listen_port']}")
-    logger.info(f"  Upstream servers:")
+    logger.info("  Upstream servers:")
     for host, port in resolver_config["upstream_servers"]:
         logger.info(f"    - {host}:{port}")
     logger.info(f"  Max CNAME recursion: {resolver_config['max_recursion']}")
@@ -566,7 +566,7 @@ def _initialize_resolver(resolver_config, args):
                 # Convert strategy string to enum
                 strategy_map = {
                     "weighted": SelectionStrategy.WEIGHTED,
-                    "latency": SelectionStrategy.LATENCY,
+                    "latency": SelectionStrategy.LOWEST_LATENCY,
                     "failover": SelectionStrategy.FAILOVER,
                     "round_robin": SelectionStrategy.ROUND_ROBIN,
                     "random": SelectionStrategy.RANDOM,
@@ -582,7 +582,8 @@ def _initialize_resolver(resolver_config, args):
                 )
             else:
                 logger.info(
-                    "Health monitoring requested but not using HumanFriendlyConfig - falling back to standard resolver"
+                    "Health monitoring requested but not using HumanFriendlyConfig - "
+                    "falling back to standard resolver"
                 )
                 resolver = DNSProxyResolver(
                     upstream_servers=resolver_config["upstream_servers"],
