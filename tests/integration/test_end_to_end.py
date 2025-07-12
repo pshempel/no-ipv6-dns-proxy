@@ -59,12 +59,20 @@ class TestEndToEnd:
             f.write(
                 f"""[dns-proxy]
 listen-address = 127.0.0.1
-port = {port}
+listen-port = {port}
 server-addresses = 8.8.8.8
 remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-{port}.pid
 
 [cache]
 cache-size = 100
+
+[log-file]
+log-file = /tmp/dns-proxy-test-{port}.log
+debug-level = INFO
+syslog = false
 """
             )
             config_file = f.name
@@ -79,8 +87,6 @@ cache-size = 100
                 "dns_proxy.main",
                 "-c",
                 config_file,
-                "--port",
-                str(port),
                 "--foreground",
             ]
 
@@ -137,12 +143,20 @@ cache-size = 100
             f.write(
                 f"""[dns-proxy]
 listen-address = 127.0.0.1
-port = {port}
+listen-port = {port}
 server-addresses = 8.8.8.8
 remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-{port}.pid
 
 [cache]
 cache-size = 100
+
+[log-file]
+log-file = /tmp/dns-proxy-test-{port}.log
+debug-level = INFO
+syslog = false
 """
             )
             config_file = f.name
@@ -157,8 +171,6 @@ cache-size = 100
                 "dns_proxy.main",
                 "-c",
                 config_file,
-                "--port",
-                str(port),
                 "--foreground",
             ]
 
