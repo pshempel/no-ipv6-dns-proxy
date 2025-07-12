@@ -32,7 +32,7 @@ server-addresses = 8.8.8.8
 
         try:
             # Should start with defaults
-            cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+            cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             time.sleep(2)
@@ -75,7 +75,7 @@ server-addresses = 8.8.8.8
                 config_file = f.name
 
             try:
-                cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+                cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                 time.sleep(2)
@@ -120,7 +120,7 @@ health-check = no
             config_file = f.name
 
         try:
-            cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+            cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             time.sleep(3)
@@ -184,7 +184,7 @@ remove-aaaa = maybe
                 config_file = f.name
 
             try:
-                cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file]
+                cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file]
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
 
                 # Should fail
@@ -228,7 +228,7 @@ priority = 2
                 config_file = f.name
 
             try:
-                cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+                cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                 time.sleep(2)
@@ -272,7 +272,7 @@ server-addresses = 8.8.8.8
                 config_file = f.name
 
             try:
-                cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+                cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                 time.sleep(2)
@@ -325,7 +325,7 @@ log-level = ERROR
                 config_file = f.name
 
             try:
-                cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+                cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                 time.sleep(2)

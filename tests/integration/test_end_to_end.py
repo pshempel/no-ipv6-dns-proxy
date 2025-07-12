@@ -41,7 +41,7 @@ def wait_for_server(port, timeout=10):
             sock.sendto(b"\x00\x00", ("127.0.0.1", port))
             sock.close()
             return True
-        except:
+        except Exception:
             time.sleep(0.5)
     return False
 
@@ -72,9 +72,11 @@ cache-size = 100
         server_process = None
         try:
             # Start DNS proxy server
+            # In CI, the package should be installed, so use -m
             cmd = [
                 sys.executable,
-                "dns_proxy/main.py",
+                "-m",
+                "dns_proxy.main",
                 "-c",
                 config_file,
                 "--port",
@@ -148,9 +150,11 @@ cache-size = 100
         server_process = None
         try:
             # Start server
+            # In CI, the package should be installed, so use -m
             cmd = [
                 sys.executable,
-                "dns_proxy/main.py",
+                "-m",
+                "dns_proxy.main",
                 "-c",
                 config_file,
                 "--port",

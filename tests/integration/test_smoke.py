@@ -6,7 +6,6 @@ This is a minimal test to ensure the server starts properly.
 """
 
 import os
-import signal
 import subprocess
 import sys
 import tempfile
@@ -38,7 +37,8 @@ remove-aaaa = yes
 
         try:
             # Try to start server
-            cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+            # In CI, the package should be installed, so use -m
+            cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
 
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -46,7 +46,14 @@ remove-aaaa = yes
             time.sleep(2)
 
             # Check if it's still running
-            assert process.poll() is None, "Server crashed immediately"
+            if process.poll() is not None:
+                stdout, stderr = process.communicate()
+                error_msg = (
+                    f"Server crashed immediately with exit code {process.returncode}\n"
+                    f"STDOUT:\n{stdout.decode()}\n"
+                    f"STDERR:\n{stderr.decode()}"
+                )
+                assert False, error_msg
 
             # Stop it gracefully
             process.terminate()
@@ -69,7 +76,7 @@ port = invalid_port_number
             config_file = f.name
 
         try:
-            cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file]
+            cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file]
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
 

@@ -9,7 +9,6 @@ Tests:
 - Real-world problematic domains (Netflix, CDNs)
 """
 
-import json
 import os
 import signal
 import socket
@@ -42,7 +41,8 @@ def start_dns_proxy(config_content, port=None):
         f.write(config_content.format(port=port))
         config_file = f.name
 
-    cmd = [sys.executable, "dns_proxy/main.py", "-c", config_file, "--foreground"]
+    # In CI, the package should be installed, so use -m
+    cmd = [sys.executable, "-m", "dns_proxy.main", "-c", config_file, "--foreground"]
 
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid
@@ -57,7 +57,7 @@ def start_dns_proxy(config_content, port=None):
             sock.sendto(b"\x00\x00", ("127.0.0.1", port))
             sock.close()
             break
-        except:
+        except Exception:
             time.sleep(0.5)
 
     return process, port, config_file
