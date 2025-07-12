@@ -6,7 +6,9 @@ set -e
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Change to repository root, not tests directory
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 
 # Colors for output
 RED='\033[0;31m'
@@ -34,6 +36,8 @@ CONFIG_FILE="$DEFAULT_CONFIG"
 LOG_LEVEL="INFO"
 RUN_TESTS=false
 CREATE_ONLY=false
+NO_HEALTH=false
+SELECTION_STRATEGY="weighted"
 CUSTOM_ARGS=""
 
 while [[ $# -gt 0 ]]; do
@@ -54,22 +58,38 @@ while [[ $# -gt 0 ]]; do
             CREATE_ONLY=true
             shift
             ;;
+        --no-health-monitoring)
+            NO_HEALTH=true
+            shift
+            ;;
+        --selection-strategy)
+            SELECTION_STRATEGY="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  -c, --config FILE      Use custom config file (default: $DEFAULT_CONFIG)"
-            echo "  -L, --loglevel LEVEL   Set log level (DEBUG, INFO, WARNING, ERROR)"
-            echo "  --run-tests            Run DNS query tests after starting"
-            echo "  --create-config-only   Only create config file and exit"
-            echo "  -h, --help             Show this help message"
+            echo "  -c, --config FILE               Use custom config file (default: $DEFAULT_CONFIG)"
+            echo "  -L, --loglevel LEVEL            Set log level (DEBUG, INFO, WARNING, ERROR)"
+            echo "  --run-tests                     Run DNS query tests after starting"
+            echo "  --create-config-only            Only create config file and exit"
+            echo "  --no-health-monitoring          Use legacy config format without health monitoring"
+            echo "  --selection-strategy STRATEGY   Server selection strategy (weighted, latency, failover, round_robin, random)"
+            echo "  -h, --help                      Show this help message"
             echo ""
             echo "Examples:"
-            echo "  # Run with default config on port 15353"
+            echo "  # Run with health monitoring on port 15353 (default)"
             echo "  $0"
             echo ""
             echo "  # Run with debug logging and tests"
             echo "  $0 -L DEBUG --run-tests"
+            echo ""
+            echo "  # Use latency-based server selection"
+            echo "  $0 --selection-strategy latency"
+            echo ""
+            echo "  # Use legacy format without health monitoring"
+            echo "  $0 --no-health-monitoring"
             echo ""
             echo "  # Use custom config"
             echo "  $0 -c ~/my-dns-test.cfg"
@@ -107,7 +127,7 @@ else
 fi
 
 # Build command
-CMD="$RUNNER test_server.py -c $CONFIG_FILE -L $LOG_LEVEL"
+CMD="$RUNNER tests/test_server.py -c $CONFIG_FILE -L $LOG_LEVEL --selection-strategy $SELECTION_STRATEGY"
 
 if [ "$RUN_TESTS" = true ]; then
     CMD="$CMD --run-tests"
@@ -115,6 +135,10 @@ fi
 
 if [ "$CREATE_ONLY" = true ]; then
     CMD="$CMD --create-config-only"
+fi
+
+if [ "$NO_HEALTH" = true ]; then
+    CMD="$CMD --no-health-monitoring"
 fi
 
 # Create config directory if needed

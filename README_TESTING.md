@@ -4,245 +4,256 @@ This guide explains how to test the DNS proxy directly from the repository witho
 
 ## Quick Start
 
+### 1. Using the Test Script (Recommended)
+
+The easiest way to test the DNS proxy is using the test server script:
+
 ```bash
-# Run with default test configuration (port 15353)
-./test_server.sh
+# Run with default config (health monitoring enabled, port 15353)
+./tests/test_server.sh
 
-# Run with automatic DNS query tests
-./test_server.sh --run-tests
+# Run with debug logging
+./tests/test_server.sh -L DEBUG
 
-# Use a specific test configuration
-./test_server.sh -c test_configs/test-ipv4-only.cfg
+# Run with automatic DNS tests
+./tests/test_server.sh --run-tests
+
+# Use latency-based server selection
+./tests/test_server.sh --selection-strategy latency
 ```
 
-## Test Scripts
+### 2. Using Python Directly
 
-### test_server.py
-Python script that handles Python path setup and runs the DNS proxy directly from the repository.
-
-### test_server.sh
-Shell wrapper that handles conda environment activation (if using project_run.sh).
-
-## Test Configurations
-
-Pre-made test configurations in `test_configs/`:
-
-- **test-ipv4-only.cfg** - IPv4 only mode (removes AAAA records) on port 15353
-- **test-dual-stack.cfg** - Dual stack mode (keeps AAAA records) on port 15354
-- **test-debug.cfg** - Debug mode with verbose logging on port 15355
-
-## Manual Testing
-
-While the server is running, test DNS queries:
+If you prefer running Python directly:
 
 ```bash
-# Test A record (IPv4)
-dig @127.0.0.1 -p 15353 example.com A
+# Through conda environment (recommended)
+priv_tools/project_run.sh python run_test.py
 
-# Test AAAA record (IPv6) - should be empty in IPv4-only mode
-dig @127.0.0.1 -p 15353 example.com AAAA
+# Or with system Python
+python3 tests/test_server.py
+```
+
+## Configuration Options
+
+### Health Monitoring (Default)
+
+By default, the test server creates a configuration with health monitoring enabled:
+
+```ini
+[upstream:cloudflare-primary]
+description = Cloudflare Primary DNS
+address = 1.1.1.1
+weight = 100
+priority = 1
+health_check = true
+
+[upstream:google-secondary]
+description = Google Public DNS
+address = 8.8.8.8
+weight = 80
+priority = 2
+health_check = true
+```
+
+### Legacy Format
+
+To use the old configuration format without health monitoring:
+
+```bash
+./tests/test_server.sh --no-health-monitoring
+```
+
+### Custom Configuration
+
+To use your own configuration file:
+
+```bash
+./tests/test_server.sh -c /path/to/your/config.cfg
+```
+
+## Selection Strategies
+
+Test different server selection strategies:
+
+```bash
+# Weighted distribution (default)
+./tests/test_server.sh --selection-strategy weighted
+
+# Lowest latency first
+./tests/test_server.sh --selection-strategy latency
+
+# Strict failover by priority
+./tests/test_server.sh --selection-strategy failover
+
+# Round-robin distribution
+./tests/test_server.sh --selection-strategy round_robin
+
+# Random selection
+./tests/test_server.sh --selection-strategy random
+```
+
+## Testing DNS Queries
+
+Once the server is running (default on port 15353), test it with:
+
+```bash
+# Basic query
+dig @127.0.0.1 -p 15353 example.com
+
+# Query with short output
+dig @127.0.0.1 -p 15353 +short google.com
 
 # Test CNAME flattening
-dig @127.0.0.1 -p 15353 www.example.com
+dig @127.0.0.1 -p 15353 www.github.com
 
-# Test with specific query type
-dig @127.0.0.1 -p 15353 google.com MX
+# Test IPv6 filtering (should return no AAAA records)
+dig @127.0.0.1 -p 15353 AAAA google.com
 
-# Test TCP mode
-dig @127.0.0.1 -p 15353 +tcp example.com
+# Check health stats (if using health monitoring)
+dig @127.0.0.1 -p 15353 TXT _dns-proxy-stats.local
 ```
 
-## Running Multiple Instances
+### Automated Testing
 
-You can run multiple test instances with different configs:
+Run the test script with automatic DNS queries:
 
 ```bash
-# Terminal 1: IPv4-only mode on port 15353
-./test_server.sh -c test_configs/test-ipv4-only.cfg
-
-# Terminal 2: Dual-stack mode on port 15354
-./test_server.sh -c test_configs/test-dual-stack.cfg
-
-# Terminal 3: Debug mode on port 15355
-./test_server.sh -c test_configs/test-debug.cfg
+./tests/test_server.sh --run-tests
 ```
 
-## Debugging
+This will:
+1. Start the DNS proxy
+2. Wait for it to initialize
+3. Run test queries against common domains
+4. Show the results
 
-### Enable Debug Logging
-```bash
-./test_server.sh -L DEBUG
-```
+## Advanced Options
 
-### Watch Debug Log
-```bash
-# If using debug config with log file
-tail -f /tmp/dns-proxy-debug.log
-```
+### Create Config Only
 
-### Check Cache Behavior
-```bash
-# First query (cache miss)
-time dig @127.0.0.1 -p 15353 cloudflare.com
-
-# Second query (cache hit - should be faster)
-time dig @127.0.0.1 -p 15353 cloudflare.com
-```
-
-### Monitor Network Traffic
-```bash
-# Watch DNS queries to upstream server
-sudo tcpdump -i any -n port 53 and host 1.1.1.1
-```
-
-## Common Issues
-
-### Permission Denied on Port 53
-The test configs use high ports (15353+) to avoid needing root. To test on port 53:
+To just create a test configuration file without starting the server:
 
 ```bash
-# Create custom config with port 53
-cat > /tmp/dns-test-53.cfg << EOF
-[dns-proxy]
-listen-port = 53
-listen-address = 127.0.0.1
-# ... rest of config
-EOF
-
-# Run with sudo
-sudo ./test_server.sh -c /tmp/dns-test-53.cfg
+./tests/test_server.sh --create-config-only
 ```
+
+### Daemon Mode
+
+To run in the background (not recommended for testing):
+
+```bash
+python3 tests/test_server.py -d
+```
+
+### Custom Port
+
+Edit the generated config file to change the port:
+
+```bash
+# Create config
+./tests/test_server.sh --create-config-only
+
+# Edit /tmp/dns-proxy-test.cfg
+# Change listen-port = 15353 to your desired port
+
+# Run with custom config
+./tests/test_server.sh -c /tmp/dns-proxy-test.cfg
+```
+
+## Troubleshooting
+
+### Permission Denied
+
+If you get permission errors on port 53:
+- Use the default test port 15353
+- Or run with sudo (not recommended for testing)
 
 ### Module Not Found
-If you get import errors, ensure:
-1. You're running from the repository root
-2. The test script is setting the Python path correctly
-3. Dependencies are installed: `pip install -r requirements.txt`
 
-### Conda Environment
-If using conda environment:
+If you get import errors:
+- Make sure you're in the repository root
+- Use the provided test scripts which set up the Python path
+- Or use: `priv_tools/project_run.sh python`
+
+### Connection Refused
+
+If dig returns "connection refused":
+- Check the server is running (look for error messages)
+- Verify the port number matches (default 15353)
+- Check firewall settings
+
+### No Results
+
+If queries return no results:
+- Check your internet connection
+- Verify the upstream DNS servers are reachable
+- Look at the server output for error messages
+- Try with debug logging: `-L DEBUG`
+
+## Example Sessions
+
+### Basic Testing
 ```bash
-# The test_server.sh script automatically uses project_run.sh if it exists
-./test_server.sh
+# Terminal 1: Start server
+./tests/test_server.sh -L INFO
 
-# Or manually:
-priv_tools/project_run.sh python test_server.py
+# Terminal 2: Test queries
+dig @127.0.0.1 -p 15353 +short example.com
+dig @127.0.0.1 -p 15353 +short cloudflare.com
 ```
 
-## Performance Testing
-
+### Health Monitoring Testing
 ```bash
-# Simple performance test with dnsperf (if installed)
-echo "example.com A" > /tmp/test-queries.txt
-dnsperf -s 127.0.0.1 -p 15353 -d /tmp/test-queries.txt -l 10
+# Start with latency strategy
+./tests/test_server.sh --selection-strategy latency -L DEBUG
 
-# Or with dig in a loop
-time for i in {1..100}; do
-    dig @127.0.0.1 -p 15353 example.com +short > /dev/null
+# Watch the debug output to see server selection
+# Run multiple queries to see latency-based selection
+for i in {1..10}; do
+    dig @127.0.0.1 -p 15353 +short example.com
+    sleep 1
 done
 ```
 
-## Integration with pytest
-
-Run unit tests:
+### Performance Testing
 ```bash
-# If using conda
-priv_tools/project_run.sh pytest
+# Start server
+./tests/test_server.sh
 
-# Otherwise
-pytest
-```
-
-Run specific test:
-```bash
-pytest tests/test_cache.py -v
-```
-
-## Example Session
-
-```bash
-# Start server with tests
-$ ./test_server.sh --run-tests
-
-DNS Proxy Test Runner
-=====================
-Using conda environment via project_run.sh
-
-Checking dependencies...
-✓ Python 3.9+
-✓ Twisted
-✓ dig (for testing)
-
-Starting DNS proxy test server...
-Command: priv_tools/project_run.sh python test_server.py -c /tmp/dns-proxy-test.cfg -l INFO --run-tests
-
-============================================================
-Starting DNS Proxy Test Server
-============================================================
-Repository root: /home/user/no-ipv6-dns-proxy
-Configuration: /tmp/dns-proxy-test.cfg
-Log level: INFO
-Foreground: True
-
-Server will listen on 127.0.0.1:15353
-Test with: dig @127.0.0.1 -p 15353 example.com
-
-Press Ctrl+C to stop the server
-============================================================
-
-Waiting for server to start...
-2025-01-11 10:30:00 INFO DNS proxy listening on 127.0.0.1:15353
-
-============================================================
-Running test DNS queries...
-============================================================
-
-Testing example.com:
-  Result: 93.184.216.34
-
-Testing google.com:
-  Result: 142.250.80.46
-
-Testing cloudflare.com:
-  Result: 104.16.132.229
-          104.16.133.229
-
-Testing one.one.one.one:
-  Result: 1.1.1.1
-          1.0.0.1
-
-Server is running. Press Ctrl+C to stop.
-```
-
-## Advanced Testing
-
-### Test with different upstream DNS servers
-```bash
-# Create custom config
-cat > /tmp/test-quad9.cfg << EOF
-[forwarder-dns]
-server-address = 9.9.9.9
-server-port = 53
-# ... rest based on test-ipv4-only.cfg
-EOF
-
-./test_server.sh -c /tmp/test-quad9.cfg
-```
-
-### Test error conditions
-```bash
-# Test with non-existent domain
-dig @127.0.0.1 -p 15353 this-domain-does-not-exist.com
-
-# Test with invalid query
-dig @127.0.0.1 -p 15353 -t TYPE65535 example.com
-```
-
-### Load testing
-```bash
-# Concurrent queries
-for i in {1..10}; do
+# Run parallel queries
+for i in {1..100}; do
     dig @127.0.0.1 -p 15353 example.com &
 done
 wait
 ```
+
+## Configuration Files
+
+Test configurations are created in `/tmp/dns-proxy-test.cfg` by default.
+
+Example configs are also available in:
+- `test_configs/test-ipv4-only.cfg` - Basic IPv4 only config
+- `test_configs/test-dual-stack.cfg` - IPv4 and IPv6 support
+- `test_configs/test-multi-server.cfg` - Multiple upstream servers
+
+To use these:
+```bash
+./tests/test_server.sh -c test_configs/test-ipv4-only.cfg
+```
+
+## Development Tips
+
+1. **Watch the logs**: Use `-L DEBUG` to see detailed operation
+2. **Test failover**: Stop one upstream DNS server to test failover
+3. **Monitor performance**: Use `time` command with dig to measure response times
+4. **Check caching**: Run the same query twice - second should be faster
+5. **Verify IPv6 filtering**: Query for AAAA records - should return empty
+
+## Next Steps
+
+After testing, you can:
+1. Install the DNS proxy system-wide: `sudo make install`
+2. Build a Debian package: `make build-deb`
+3. Configure as system service: See main README
+4. Set up monitoring: See docs/health-monitoring.md
