@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Test script for human-friendly configuration"""
 
-import sys
 import os
+import sys
 import tempfile
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dns_proxy.config_human import HumanFriendlyConfig, HumanConfigError, migrate_legacy_config
+from dns_proxy.config_human import HumanConfigError, HumanFriendlyConfig, migrate_legacy_config
+
 
 def test_valid_config():
     """Test parsing a valid human-friendly config"""
@@ -34,20 +35,20 @@ address = 192.168.1.10
 port = 5353
 health_check = false
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         config = HumanFriendlyConfig(config_file)
         servers = config.get_upstream_servers_detailed()
-        
+
         print("✅ Valid config parsed successfully!")
         print(f"Found {len(servers)} upstream servers:")
         for server in servers:
             print(f"  - {server}")
-        
+
     finally:
         os.unlink(config_file)
 
@@ -62,11 +63,11 @@ listen-port = 53
 adress = 1.1.1.1  # Typo: should be 'address'
 weight = 100
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         config = HumanFriendlyConfig(config_file)
         print("\n❌ Testing config with typo 'adress'...")
@@ -87,11 +88,11 @@ listen-port = 53
 port = 53
 weight = 100
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         config = HumanFriendlyConfig(config_file)
         print("\n❌ Testing config missing 'address' field...")
@@ -113,11 +114,11 @@ address = not-an-ip-address
 weight = over-9000
 priority = too-high
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         config = HumanFriendlyConfig(config_file)
         print("\n❌ Testing config with invalid values...")
@@ -134,11 +135,11 @@ def test_legacy_migration():
 [forwarder-dns]
 server-addresses = 1.1.1.1,8.8.8.8,192.168.1.1:5353,[2606:4700:4700::1111]
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         print("\n🔄 Testing legacy config migration...")
         migrated = migrate_legacy_config(config_file)
@@ -157,14 +158,14 @@ listen-port = 53
 [upstream:dns1]
 address = 8.8.8.8
 
-[upstream:dns2]  
+[upstream:dns2]
 address = 8.8.8.8  # Duplicate!
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.cfg', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
         f.write(config_content)
         config_file = f.name
-    
+
     try:
         config = HumanFriendlyConfig(config_file)
         print("\n⚠️  Testing duplicate address detection...")
@@ -177,13 +178,13 @@ address = 8.8.8.8  # Duplicate!
 if __name__ == "__main__":
     print("Human-Friendly Configuration Tests")
     print("=" * 50)
-    
+
     test_valid_config()
     test_config_with_typos()
     test_missing_address()
     test_invalid_values()
     test_legacy_migration()
     test_duplicate_warning()
-    
+
     print("\n" + "=" * 50)
     print("✅ All tests completed!")

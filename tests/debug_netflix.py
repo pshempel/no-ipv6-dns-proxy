@@ -5,34 +5,33 @@ Debug script for Netflix CNAME resolution
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent))
 
-from twisted.internet import reactor, defer
-from twisted.names import dns, client
 import logging
+
+from twisted.internet import defer, reactor
+from twisted.names import client, dns
 
 # Set up logging
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @defer.inlineCallbacks
 def test_netflix_resolution():
     """Test resolution of logs.netflix.com"""
-    
+
     # Create upstream resolver
-    upstream_resolver = client.Resolver(
-        servers=[('192.168.1.101', 53)],
-        timeout=(5.0,)
-    )
-    
-    domain = 'logs.netflix.com'
-    
+    upstream_resolver = client.Resolver(servers=[("192.168.1.101", 53)], timeout=(5.0,))
+
+    domain = "logs.netflix.com"
+
     print(f"\nTesting resolution of {domain}")
     print("=" * 60)
-    
+
     try:
         # First, try CNAME lookup
         print(f"\n1. Looking up CNAME for {domain}...")
@@ -45,7 +44,7 @@ def test_netflix_resolution():
                 print("   No CNAME records found")
         except Exception as e:
             print(f"   CNAME lookup error: {e}")
-        
+
         # Try A record lookup
         print(f"\n2. Looking up A records for {domain}...")
         try:
@@ -57,14 +56,14 @@ def test_netflix_resolution():
                 print("   No A records found")
         except Exception as e:
             print(f"   A record lookup error: {e}")
-            
+
         # Try full query
         print(f"\n3. Full DNS query for {domain}...")
         query = dns.Query(domain, dns.A, dns.IN)
         try:
             result = yield upstream_resolver.query(query)
             answers, authority, additional = result
-            
+
             print(f"   Answers: {len(answers)} records")
             for i, rr in enumerate(answers):
                 if rr.type == dns.CNAME:
@@ -73,23 +72,26 @@ def test_netflix_resolution():
                     print(f"     [{i}] A: {rr.name} -> {rr.payload.dottedQuad()}")
                 else:
                     print(f"     [{i}] Type {rr.type}: {rr.name}")
-            
+
             print(f"   Authority: {len(authority)} records")
             print(f"   Additional: {len(additional)} records")
-            
+
         except Exception as e:
             print(f"   Full query error: {e}")
             import traceback
+
             traceback.print_exc()
-            
+
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     finally:
         reactor.stop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     reactor.callWhenRunning(test_netflix_resolution)
     reactor.run()

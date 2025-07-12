@@ -2,9 +2,9 @@
 """
 Direct test of DNS proxy with debug output
 """
-import sys
-import os
 import logging
+import os
+import sys
 from pathlib import Path
 
 # Add repo to path
@@ -13,8 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Set up detailed logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
 )
 
 # Now import and run
@@ -42,7 +42,7 @@ debug-level = DEBUG
 """
 
 config_path = "/tmp/dns-test-debug.cfg"
-with open(config_path, 'w') as f:
+with open(config_path, "w") as f:
     f.write(config_content)
 
 print("Starting DNS proxy with DEBUG logging...")
@@ -50,5 +50,5 @@ print("Test with: nslookup -port=15353 logs.netflix.com 127.0.0.1")
 print("=" * 60)
 
 # Run with debug config
-sys.argv = ['dns-proxy', '-c', config_path, '-L', 'DEBUG']
+sys.argv = ["dns-proxy", "-c", config_path, "-L", "DEBUG"]
 main()

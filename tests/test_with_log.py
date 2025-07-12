@@ -2,8 +2,8 @@
 """
 Test DNS proxy with file logging
 """
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add repo to path
@@ -31,12 +31,12 @@ debug-level = DEBUG
 """
 
 config_path = "/tmp/dns-test-log.cfg"
-with open(config_path, 'w') as f:
+with open(config_path, "w") as f:
     f.write(config_content)
 
 # Clear any existing log
-if os.path.exists('/tmp/dns.log'):
-    os.remove('/tmp/dns.log')
+if os.path.exists("/tmp/dns.log"):
+    os.remove("/tmp/dns.log")
 
 print("Starting DNS proxy with logging to /tmp/dns.log")
 print("Test with: nslookup -port=15353 logs.netflix.com 127.0.0.1")
@@ -47,5 +47,5 @@ print("=" * 60)
 from dns_proxy.main import main
 
 # Run with log config
-sys.argv = ['dns-proxy', '-c', config_path]
+sys.argv = ["dns-proxy", "-c", config_path]
 main()

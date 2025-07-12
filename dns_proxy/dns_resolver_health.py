@@ -3,14 +3,13 @@
 
 import logging
 import time
-from typing import List, Optional, Tuple
 
 from twisted.internet import defer
 from twisted.names import dns, error
 
-from .config_human import HumanFriendlyConfig, UpstreamServer
+from .config_human import HumanFriendlyConfig
 from .constants import DNS_QUERY_TIMEOUT
-from .dns_resolver import CNAMEFlattener, DNSProxyResolver
+from .dns_resolver import DNSProxyResolver
 from .health import HealthMonitor, QueryResult, SelectionStrategy, ServerSelector
 from .health.monitor import HealthCheckConfig
 
@@ -139,7 +138,7 @@ class HealthAwareDNSResolver(DNSProxyResolver):
 
             defer.returnValue(response)
 
-        except error.DNSServerError as e:
+        except error.DNSServerError:
             # Server error (refused, etc)
             self.health_monitor.record_query_result(server_name, QueryResult.REFUSED)
 
@@ -151,7 +150,7 @@ class HealthAwareDNSResolver(DNSProxyResolver):
                     try:
                         resolver = client.Resolver(servers=[fallback])
                         resolver.timeout = (DNS_QUERY_TIMEOUT,)
-                        result = yield resolver._lookup(name, cls, type, DNS_QUERY_TIMEOUT)
+                        result = yield resolver.query(query)
 
                         # Find server name for logging
                         for health in all_servers:
@@ -164,7 +163,7 @@ class HealthAwareDNSResolver(DNSProxyResolver):
                                 break
 
                         defer.returnValue(result)
-                    except:
+                    except Exception:
                         continue
 
             raise

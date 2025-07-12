@@ -4,25 +4,27 @@ run_test.py - Simplified test runner for DNS proxy
 Can be called directly with: priv_tools/project_run.sh python tests/run_test.py
 """
 
-import sys
 import os
-import time
 import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 # Set up test environment (finds repo root and sets Python path)
-from test_utils import setup_test_environment, create_test_config
+from test_utils import create_test_config, setup_test_environment
+
 REPO_ROOT = setup_test_environment()
 
 # Import after path is set
 from dns_proxy.main import main
 
+
 def run_test_server():
     """Run DNS proxy with test configuration"""
-    
+
     config = "/tmp/dns-proxy-quick-test.cfg"
-    
+
     # Create minimal test config
     config_content = """[dns-proxy]
 listen-port = 15353
@@ -43,17 +45,17 @@ max-size = 1000
 log-file = none
 debug-level = INFO
 """
-    
-    with open(config, 'w') as f:
+
+    with open(config, "w") as f:
         f.write(config_content)
-    
+
     print(f"Test server starting on 127.0.0.1:15353")
     print(f"Test with: dig @127.0.0.1 -p 15353 example.com")
     print("Press Ctrl+C to stop\n")
-    
+
     # Set up arguments (no -f flag, runs in foreground by default without -d)
-    sys.argv = ['dns-proxy', '-c', config]
-    
+    sys.argv = ["dns-proxy", "-c", config]
+
     try:
         main()
     except KeyboardInterrupt:
@@ -61,7 +63,9 @@ debug-level = INFO
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run_test_server()

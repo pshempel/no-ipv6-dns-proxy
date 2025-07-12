@@ -16,7 +16,7 @@ import configparser
 import ipaddress
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .config import DNSProxyConfig
 from .constants import (
@@ -191,7 +191,8 @@ class HumanFriendlyConfig(DNSProxyConfig):
                 server.port = port
             except ValueError:
                 raise HumanConfigError(
-                    f"In [{section}]: Port must be a number between {MIN_PORT_NUMBER} and {MAX_PORT_NUMBER}",
+                    f"In [{section}]: Port must be a number between "
+                    f"{MIN_PORT_NUMBER} and {MAX_PORT_NUMBER}",
                     f"Got '{options['port']}'",
                 )
 
