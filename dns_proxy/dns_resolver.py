@@ -75,7 +75,7 @@ class CNAMEFlattener:
         self.cache = cache or DNSCache()
         self.remove_aaaa = remove_aaaa
 
-    @defer.inlineCallbacks  # type: ignore[misc]
+    @defer.inlineCallbacks  # type: ignore[misc]  # Twisted decorator
     def resolve_cname_chain(self, name: str, recursion_count: int = 0):
         """Resolve CNAME chain to final A record names"""
         if recursion_count >= self.max_recursion:
@@ -111,7 +111,7 @@ class CNAMEFlattener:
             logger.debug(f"No CNAME found for {name}: {e}")
             defer.returnValue([])
 
-    @defer.inlineCallbacks  # type: ignore[misc]
+    @defer.inlineCallbacks  # type: ignore[misc]  # Twisted decorator
     def flatten_cnames(self, dns_msg: DNSMessage, original_query_name: str):
         """Flatten CNAME records to A records"""
         cname_records = dns_msg.get_cname_records()
@@ -219,7 +219,7 @@ class DNSProxyResolver:
             self.upstream_resolver, max_recursion, self.cache, remove_aaaa
         )
 
-    @defer.inlineCallbacks  # type: ignore[misc]
+    @defer.inlineCallbacks  # type: ignore[misc]  # Twisted decorator
     def resolve_query(self, query: dns.Query):
         """Resolve DNS query with CNAME flattening"""
         query_name = str(query.name)
@@ -269,7 +269,7 @@ class DNSProxyResolver:
             return cached_response
         return None
 
-    @defer.inlineCallbacks  # type: ignore[misc]
+    @defer.inlineCallbacks  # type: ignore[misc]  # Twisted decorator
     def _forward_to_upstream(self, query: dns.Query, query_name: str):
         """Forward query to upstream DNS server"""
         result = yield self.upstream_resolver.query(query)

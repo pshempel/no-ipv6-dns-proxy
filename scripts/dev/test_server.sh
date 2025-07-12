@@ -127,7 +127,7 @@ else
 fi
 
 # Build command
-CMD="$RUNNER tests/test_server.py -c $CONFIG_FILE -L $LOG_LEVEL --selection-strategy $SELECTION_STRATEGY"
+CMD="$RUNNER scripts/dev/test_server.py -c $CONFIG_FILE -L $LOG_LEVEL --selection-strategy $SELECTION_STRATEGY"
 
 if [ "$RUN_TESTS" = true ]; then
     CMD="$CMD --run-tests"

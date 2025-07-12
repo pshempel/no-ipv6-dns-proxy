@@ -10,6 +10,14 @@ from twisted.internet import defer, task
 from twisted.names import client, dns, error
 
 from ..config_human import UpstreamServer
+from ..constants import (
+    HEALTH_CHECK_FAILURE_THRESHOLD,
+    HEALTH_CHECK_INTERVAL,
+    HEALTH_CHECK_QUERY,
+    HEALTH_CHECK_RECOVERY_THRESHOLD,
+    HEALTH_CHECK_STARTUP_DELAY,
+    HEALTH_CHECK_TIMEOUT,
+)
 from .metrics import QueryResult, ServerMetrics
 
 logger = logging.getLogger(__name__)
@@ -19,13 +27,18 @@ logger = logging.getLogger(__name__)
 class HealthCheckConfig:
     """Configuration for health checks"""
 
+    # Modified by Claude: 2025-01-12 - Use constants for health check configuration
     enabled: bool = True
-    interval: float = 30.0  # seconds between checks
-    timeout: float = 3.0  # health check query timeout
-    failure_threshold: int = 3  # consecutive failures to mark unhealthy
-    recovery_threshold: int = 2  # consecutive successes to mark healthy
-    check_query: str = "health-check.dns-proxy.local"  # Query to use
-    check_type: int = dns.A  # Query type
+    interval: float = HEALTH_CHECK_INTERVAL  # seconds between checks
+    timeout: float = HEALTH_CHECK_TIMEOUT  # health check query timeout
+    failure_threshold: int = (
+        HEALTH_CHECK_FAILURE_THRESHOLD  # consecutive failures to mark unhealthy
+    )
+    recovery_threshold: int = (
+        HEALTH_CHECK_RECOVERY_THRESHOLD  # consecutive successes to mark healthy
+    )
+    check_query: str = HEALTH_CHECK_QUERY  # Query to use
+    check_type: int = dns.A  # Query type - A record for root server
 
 
 class ServerHealth:
@@ -48,6 +61,8 @@ class HealthMonitor:
         self.servers: Dict[str, ServerHealth] = {}
         self._health_check_loop = None
         self._started = False
+        # Modified by Claude: 2025-01-12 - Add startup grace period
+        self._startup_time = time.time()
 
         logger.info(f"Health monitor initialized (interval: {self.config.interval}s)")
 
@@ -85,12 +100,21 @@ class HealthMonitor:
             logger.info("Health monitoring is disabled")
             return
 
+        # Modified by Claude: 2025-01-12 - Add startup delay to avoid race conditions
+        from twisted.internet import reactor
+
         # Create looping call for health checks
         self._health_check_loop = task.LoopingCall(self._run_health_checks)
-        self._health_check_loop.start(self.config.interval)
+
+        # Schedule the looping call to start after a delay
+        def start_loop():
+            self._health_check_loop.start(self.config.interval, now=True)
+            logger.info(f"Health checks now active (every {self.config.interval}s)")
+
+        reactor.callLater(HEALTH_CHECK_STARTUP_DELAY, start_loop)
 
         self._started = True
-        logger.info(f"Started health monitoring (checking every {self.config.interval}s)")
+        logger.info(f"Health monitoring scheduled (first check in {HEALTH_CHECK_STARTUP_DELAY}s)")
 
     def stop(self):
         """Stop health monitoring"""
@@ -102,7 +126,8 @@ class HealthMonitor:
     @defer.inlineCallbacks
     def _run_health_checks(self):
         """Run health checks on all servers (called by LoopingCall)"""
-        logger.debug("Running scheduled health checks")
+        # Modified by Claude: 2025-01-12 - Add more detailed logging
+        logger.info(f"Running scheduled health checks on {len(self.servers)} servers")
 
         # Check each server
         for server_name, health in self.servers.items():
@@ -122,6 +147,11 @@ class HealthMonitor:
 
         try:
             # Create a simple DNS query
+            # Modified by Claude: 2025-01-12 - Add debug logging for query details
+            logger.debug(
+                f"Creating health check query: '{self.config.check_query}' "
+                f"type={self.config.check_type}"
+            )
             query = dns.Query(self.config.check_query, self.config.check_type)
 
             # Use timeout specific to health checks
@@ -171,7 +201,11 @@ class HealthMonitor:
 
     def _handle_check_failure(self, health: ServerHealth, reason: str):
         """Handle a failed health check"""
-        logger.debug(f"{health.server.name} health check failed: {reason}")
+        # Modified by Claude: 2025-01-12 - Improve error logging for debugging
+        logger.warning(
+            f"{health.server.name} ({health.server.address}:{health.server.port}) "
+            f"health check failed: {reason}"
+        )
 
         # Check if we should mark as unhealthy
         if (
@@ -211,6 +245,12 @@ class HealthMonitor:
                     logger.info(f"{server_name} marked healthy after {recent_successes} successes")
         else:
             # Check failure threshold
+            # Modified by Claude: 2025-01-12 - Don't mark unhealthy during startup grace period
+            time_since_startup = time.time() - self._startup_time
+            if time_since_startup < HEALTH_CHECK_STARTUP_DELAY:
+                logger.debug(f"Ignoring failure for {server_name} during startup grace period")
+                return
+
             if (
                 health.metrics.is_healthy
                 and health.metrics.consecutive_failures >= self.config.failure_threshold

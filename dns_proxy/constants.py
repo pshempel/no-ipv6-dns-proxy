@@ -46,6 +46,20 @@ MAX_CNAME_RECURSION_DEPTH = 10  # Maximum CNAME chain depth to follow
 CNAME_DEFAULT_TTL = 300  # Default TTL for CNAME records
 
 # =============================================================================
+# HEALTH CHECK SETTINGS
+# =============================================================================
+# Modified by Claude: 2025-01-12 - Add health check constants
+HEALTH_CHECK_INTERVAL = 30.0  # Seconds between health checks
+HEALTH_CHECK_STARTUP_DELAY = 5.0  # Initial delay before first health check
+HEALTH_CHECK_TIMEOUT = 3.0  # Timeout for health check queries
+HEALTH_CHECK_FAILURE_THRESHOLD = 3  # Consecutive failures to mark unhealthy
+HEALTH_CHECK_RECOVERY_THRESHOLD = 2  # Consecutive successes to mark healthy
+HEALTH_CHECK_QUERY = "a.root-servers.net"  # Query a root server (exists everywhere)
+HEALTH_CHECK_TYPE = "A"  # A record query
+# Why a.root-servers.net? It's a well-known root server that exists on all DNS servers,
+# doesn't leak user intent, and won't be affected by local DNS proxy flattening
+
+# =============================================================================
 # QUERY TYPES ALLOWED
 # =============================================================================
 # Only these query types are processed, others are rejected

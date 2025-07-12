@@ -259,6 +259,27 @@ from dns_proxy.constants import (
 - Use context managers (with statements) for resource management
 - Document functions and classes with docstrings
 
+### Twisted Framework Standards
+When using Twisted framework functions and classes:
+- **Always add `# type: ignore` comments** for Twisted-specific dynamic attributes
+- **Document why** the type ignore is needed (e.g., "Twisted dynamic attribute")
+- **Common Twisted type issues**:
+  - `dns.Message.questions` - dynamically assigned attribute
+  - `dns.Record_*` types - not properly typed in stubs
+  - `defer.inlineCallbacks` - decorator type issues
+  - Dynamic protocol attributes
+
+**Example**:
+```python
+# Twisted's Message class has dynamic attributes
+response.questions = message.queries  # type: ignore[attr-defined]  # Twisted dynamic
+
+# Twisted's Record types aren't properly typed
+payload=dns.Record_TXT(data),  # type: ignore[arg-type]  # Twisted Record type
+```
+
+This helps distinguish between real type errors and Twisted's dynamic nature.
+
 ### Recent Cache Fixes (v1.1.0)
 The following critical cache issues have been fixed:
 1. **Cache key generation** - Now includes query class to prevent collisions

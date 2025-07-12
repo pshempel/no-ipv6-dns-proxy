@@ -23,7 +23,7 @@ fi
 
 # Start dns-proxy in background
 echo -e "${YELLOW}Starting dns-proxy on port $TEST_PORT...${NC}"
-./test_server.sh &
+./scripts/dev/test_server.sh &
 DNS_PID=$!
 
 # Give it time to start

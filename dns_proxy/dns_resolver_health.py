@@ -65,12 +65,21 @@ class HealthAwareDNSResolver(DNSProxyResolver):
         for server_config in self.upstream_configs:
             self.health_monitor.add_server(server_config)
 
-        # Start health monitoring
-        self.health_monitor.start()
+        # Modified by Claude: 2025-01-12 - Defer health monitor start to reactor runtime
+        # Don't start health monitoring here - will be started when reactor runs
+        self._health_monitor_started = False
 
         logger.info(
             f"Health-aware DNS resolver initialized with {len(self.upstream_configs)} servers"
         )
+
+    def start_health_monitoring(self):
+        """Start health monitoring - should be called after reactor is running"""
+        # Modified by Claude: 2025-01-12 - Add method to start health monitoring
+        if not self._health_monitor_started:
+            self.health_monitor.start()
+            self._health_monitor_started = True
+            logger.info("Health monitoring started")
 
     def _get_health_config(self, config: HumanFriendlyConfig) -> HealthCheckConfig:
         """Extract health check configuration"""
@@ -87,7 +96,7 @@ class HealthAwareDNSResolver(DNSProxyResolver):
 
         return health_config
 
-    @defer.inlineCallbacks  # type: ignore[misc]
+    @defer.inlineCallbacks  # type: ignore[misc]  # Twisted decorator
     def _forward_to_upstream(self, query, query_name):
         """
         Override _forward_to_upstream to use health-based server selection
@@ -115,10 +124,11 @@ class HealthAwareDNSResolver(DNSProxyResolver):
         # Track query timing
         start_time = time.time()
 
+        # Import client at method level to ensure it's available in except blocks
+        from twisted.names import client
+
         try:
             # Create resolver for selected server
-            from twisted.names import client
-
             resolver = client.Resolver(servers=[server_tuple])
             resolver.timeout = (DNS_QUERY_TIMEOUT,)
 
@@ -196,6 +206,9 @@ class HealthAwareDNSResolver(DNSProxyResolver):
 class HealthAwareDNSProtocol:
     """Mixin for DNS protocols to report health statistics"""
 
+    # Type hint to indicate this mixin expects a resolver attribute
+    resolver: HealthAwareDNSResolver  # type: ignore[misc]  # Mixin class attribute
+
     def get_health_stats_response(self, message, address):
         """
         Generate a special response for health statistics queries
@@ -227,6 +240,7 @@ class HealthAwareDNSProtocol:
                         type=dns.TXT,
                         cls=dns.IN,
                         ttl=0,  # Don't cache
+                        # type: ignore[arg-type]  # Twisted Record type
                         payload=dns.Record_TXT(txt_data.encode()),
                     )
                     answers.append(rr)
@@ -238,6 +252,7 @@ class HealthAwareDNSProtocol:
                 response.recDes = message.recDes
                 response.recAv = True
                 response.answers = answers
+                # type: ignore[assignment]  # Twisted dynamic attribute
                 response.questions = message.queries
 
                 return response

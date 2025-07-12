@@ -98,7 +98,7 @@ def _setup_signal_handlers(logger):
         logger.info(f"Received signal {signum}, shutting down...")
         from twisted.internet import reactor
 
-        reactor.stop()  # type: ignore[attr-defined]
+        reactor.stop()  # type: ignore[attr-defined]  # Twisted reactor
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
@@ -123,16 +123,52 @@ def _check_bindv6only():
         return 0  # Default to dual-stack capable
 
 
+def _handle_bind_error(error, port, address, logger):
+    """Handle port binding errors with helpful messages"""
+    # Modified by Claude: 2025-01-12 - Add helper for port binding errors
+    import errno
+
+    error_msg = str(error)
+
+    # Check for common binding errors
+    if "Address already in use" in error_msg or (
+        hasattr(error, "errno") and error.errno == errno.EADDRINUSE
+    ):
+        logger.error(f"Port {port} is already in use on {address}")
+        logger.error("Please check if another instance is running or use a different port")
+        logger.error(
+            f"You can find the process using: sudo lsof -i :{port} "
+            f"or sudo netstat -tulpn | grep :{port}"
+        )
+    elif "Permission denied" in error_msg or (
+        hasattr(error, "errno") and error.errno == errno.EACCES
+    ):
+        logger.error(f"Permission denied to bind to port {port}")
+        if port < 1024:
+            logger.error("Ports below 1024 require root privileges")
+            logger.error("Try running with sudo or use a port >= 1024")
+    else:
+        logger.error(f"Failed to bind to {address}:{port}: {error}")
+
+    # Exit with error code
+    import sys
+
+    sys.exit(1)
+
+
 def _bind_dual_stack_single_socket(reactor, listen_port, udp_protocol, tcp_factory, logger):
     """Bind dual-stack server using single IPv6 socket with IPv4 compatibility"""
+    # Modified by Claude: 2025-01-12 - Add error handling for port binding
     logger.info("Starting dual-stack DNS server (IPv6 socket with IPv4 compatibility)")
     logger.info("System bindv6only=0: IPv6 socket will accept IPv4 connections")
 
-    udp_server = reactor.listenUDP(listen_port, udp_protocol, interface="::")
-    tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface="::")
-    logger.info(f"DNS Proxy dual-stack servers listening on [::]:{listen_port} (UDP + TCP)")
-
-    return [(udp_server, tcp_server)]
+    try:
+        udp_server = reactor.listenUDP(listen_port, udp_protocol, interface="::")
+        tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface="::")
+        logger.info(f"DNS Proxy dual-stack servers listening on [::]:{listen_port} (UDP + TCP)")
+        return [(udp_server, tcp_server)]
+    except Exception as e:
+        _handle_bind_error(e, listen_port, "::", logger)
 
 
 def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_factory, logger):
@@ -151,11 +187,15 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
     udp_protocol_v6 = DNSProxyProtocol(udp_protocol.resolver, rate_limiter)
 
     # Start IPv6 servers first (they're pickier about binding)
-    udp_server_v6 = reactor.listenUDP(listen_port, udp_protocol_v6, interface="::")
-    tcp_factory_v6 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
-    tcp_server_v6 = reactor.listenTCP(listen_port, tcp_factory_v6, interface="::")
-    logger.info(f"DNS Proxy IPv6 servers listening on [::]:{listen_port} (UDP + TCP)")
-    servers.append((udp_server_v6, tcp_server_v6))
+    # Modified by Claude: 2025-01-12 - Add error handling for port binding
+    try:
+        udp_server_v6 = reactor.listenUDP(listen_port, udp_protocol_v6, interface="::")
+        tcp_factory_v6 = DNSTCPFactory(udp_protocol.resolver, rate_limiter)
+        tcp_server_v6 = reactor.listenTCP(listen_port, tcp_factory_v6, interface="::")
+        logger.info(f"DNS Proxy IPv6 servers listening on [::]:{listen_port} (UDP + TCP)")
+        servers.append((udp_server_v6, tcp_server_v6))
+    except Exception as e:
+        _handle_bind_error(e, listen_port, "::", logger)
 
     # Start IPv4 servers with SO_REUSEADDR
     try:
@@ -173,22 +213,22 @@ def _bind_dual_stack_separate_sockets(reactor, listen_port, udp_protocol, tcp_fa
 
 def _bind_single_stack(reactor, listen_port, listen_address, udp_protocol, tcp_factory, logger):
     """Bind single-stack server to specified address"""
-    udp_server = reactor.listenUDP(listen_port, udp_protocol, interface=listen_address)
-    logger.info(f"DNS Proxy UDP server listening on {listen_address}:{listen_port}")
+    # Modified by Claude: 2025-01-12 - Add error handling for port binding
+    try:
+        udp_server = reactor.listenUDP(listen_port, udp_protocol, interface=listen_address)
+        logger.info(f"DNS Proxy UDP server listening on {listen_address}:{listen_port}")
 
-    tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface=listen_address)
-    logger.info(f"DNS Proxy TCP server listening on {listen_address}:{listen_port}")
+        tcp_server = reactor.listenTCP(listen_port, tcp_factory, interface=listen_address)
+        logger.info(f"DNS Proxy TCP server listening on {listen_address}:{listen_port}")
 
-    return [(udp_server, tcp_server)]
+        return [(udp_server, tcp_server)]
+    except Exception as e:
+        _handle_bind_error(e, listen_port, listen_address, logger)
 
 
 def _setup_security_context(config, args, logger):
     """Create security setup callback for reactor"""
-    import grp
-    import os
-    import pwd
-
-    from dns_proxy.security import create_pid_file, drop_privileges
+    from dns_proxy.security import drop_privileges
 
     def setup_security():
         """Setup security after binding to port"""
@@ -309,20 +349,44 @@ def start_dns_server(config, args, logger, udp_protocol):
 
     # Setup security callback
     security_callback = _setup_security_context(config, args, logger)
-    reactor.callWhenRunning(security_callback)  # type: ignore[attr-defined]
+    reactor.callWhenRunning(security_callback)  # type: ignore[attr-defined]  # Twisted reactor
+
+    # Modified by Claude: 2025-01-12 - Start health monitoring when reactor is running
+    # Check if resolver has health monitoring and start it
+    resolver = getattr(udp_protocol, "resolver", None)
+    if resolver and hasattr(resolver, "start_health_monitoring"):
+        # type: ignore[attr-defined]  # Twisted reactor
+        reactor.callWhenRunning(resolver.start_health_monitoring)
+        logger.info("Health monitoring will start when reactor is running")
 
     # Start reactor
     if listen_address == "::":
         logger.info("DNS Proxy started successfully (dual-stack independent of bindv6only)")
     else:
         logger.info("DNS Proxy started successfully (UDP + TCP)")
-    reactor.run()  # type: ignore[attr-defined]
+    reactor.run()  # type: ignore[attr-defined]  # Twisted reactor
 
     # Cleanup on exit
     pid_file_path = args.pidfile or config.get("dns-proxy", "pid-file")
     if pid_file_path:
         remove_pid_file(pid_file_path)
     logger.info("DNS Proxy stopped")
+
+
+def _validate_port(value):
+    """Validate port number is in valid range"""
+    # Modified by Claude: 2025-01-12 - Add port validation function
+    from dns_proxy.constants import MAX_PORT_NUMBER, MIN_PORT_NUMBER
+
+    try:
+        port = int(value)
+        if port < MIN_PORT_NUMBER or port > MAX_PORT_NUMBER:
+            raise argparse.ArgumentTypeError(
+                f"Port must be between {MIN_PORT_NUMBER} and {MAX_PORT_NUMBER}"
+            )
+        return port
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid port number: {value}")
 
 
 def _parse_arguments():
@@ -340,7 +404,10 @@ def _parse_arguments():
     parser.add_argument(
         "-L", "--loglevel", choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Log level"
     )
-    parser.add_argument("-p", "--port", type=int, help="Listen port (overrides config)")
+    # Modified by Claude: 2025-01-12 - Add port validation
+    parser.add_argument(
+        "-p", "--port", type=lambda x: _validate_port(x), help="Listen port (overrides config)"
+    )
     parser.add_argument("-a", "--address", help="Listen address (overrides config)")
     parser.add_argument(
         "-u",

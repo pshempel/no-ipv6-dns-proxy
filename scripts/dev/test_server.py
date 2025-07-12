@@ -36,7 +36,7 @@ pid-file = /tmp/dns-proxy-test.pid
 description = Cloudflare Primary DNS (Test)
 address = 1.1.1.1
 weight = 100
-priority = 1
+priority = 4
 health_check = true
 
 [upstream:google-secondary]
@@ -51,6 +51,35 @@ description = Cloudflare Secondary (Test)
 address = 1.0.0.1
 weight = 50
 priority = 3
+health_check = true
+
+[upstream:quad9]
+description = Quad9  (Test)
+address = 9.9.9.9
+weight = 40
+priority = 5
+health_check = true
+
+[upstream:quad9-secondary]
+description = Quad9 Secondary (Test)
+address = 2620:fe::9
+weight = 45
+priority = 1
+health_check = true
+
+[upstream:local-dns-primary]
+description = Local DNS Will Always Work (Test)
+address = 2001:470:1f11:112:1::2b52
+weight = 100
+priority = 6
+health_check = true
+
+
+[upstream:reallybadwontwork-test]
+description = Use all zeros (Test)
+address = 0.0.0.0
+weight = 40
+priority = 7
 health_check = true
 
 [health-checks]
@@ -69,7 +98,7 @@ max-size = 1000
 default-ttl = 300
 
 [log-file]
-log-file = none
+log-file = /tmp/dns-proxy-test.log
 debug-level = INFO
 syslog = false
 """
