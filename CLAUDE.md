@@ -225,6 +225,8 @@ This structure supports future enhancements:
 - ❌ BAD: `timeout = 5.0`
 - ✅ GOOD: `timeout = DNS_QUERY_TIMEOUT`
 
+**Note**: Percentage calculations (`* 100`) are OK - the checker is smart enough to skip these
+
 **Common Constants to Use:**
 - `DNS_DEFAULT_PORT` (53) - Default DNS port
 - `DNS_UDP_MAX_SIZE` (512) - Max UDP packet size
@@ -245,8 +247,9 @@ from dns_proxy.constants import (
 ```
 
 **Enforcement:**
+- Pre-commit hook `check-hardcoded-constants` automatically checks for violations
+- Pre-commit hook `verify-constants-imports` ensures proper imports
 - Code reviews should reject any hardcoded values
-- Pre-commit hooks can check for common patterns
 - All new code must import and use constants
 
 ### Python Specifics
@@ -339,6 +342,59 @@ Examples:
 - **Framework**: Use pytest as the standard test framework
 - **Independence**: Keep tests independent and repeatable
 - **NO test files in root**: Move any test_*.py or *_test.sh to appropriate subdirectory
+
+### Pre-commit Hooks and Code Quality
+
+#### Pre-commit Setup
+The project uses pre-commit hooks to maintain code quality. To get started:
+```bash
+# One-time setup
+./scripts/setup_pre_commit.sh
+
+# Manual runs (uses conda environment automatically)
+./scripts/run_pre_commit.sh              # Staged files only
+./scripts/run_pre_commit.sh run --all-files  # All files
+```
+
+#### Available Hooks
+1. **Code Formatting** (Auto-fix)
+   - `black`: Python code formatting (100 char line length)
+   - `isort`: Import sorting
+   - `trailing-whitespace`: Remove trailing spaces
+   - `end-of-file-fixer`: Ensure newline at EOF
+
+2. **Linting** (Report issues)
+   - `flake8`: PEP 8 style checking
+   - `mypy`: Type checking (currently permissive)
+   - `bandit`: Security vulnerability scanning
+
+3. **Custom Checks**
+   - `check-hardcoded-constants`: No magic numbers (26 violations currently)
+   - `verify-constants-imports`: Ensure constants are imported before use
+
+#### Type Checking Status
+- **Permissive mode**: 0 errors (allows untyped functions)
+- **Strict mode**: 590 errors (see `mypy-strict.ini` for analysis)
+- Gradual adoption recommended - start with critical modules
+
+#### Known Issues to Fix
+1. **Missing constant imports** (3 files):
+   - `dns_proxy/config.py`
+   - `dns_proxy/config_human.py`
+   - `dns_proxy/metrics.py`
+
+2. **Security warnings**: Binding to 0.0.0.0 (bandit)
+
+3. **Hardcoded values**: 26 violations need constants
+
+#### Bypassing Hooks (When Necessary)
+```bash
+# Skip all hooks for emergency fixes
+git commit --no-verify -m "emergency: Fix critical issue"
+
+# But always run manually afterward
+./scripts/run_pre_commit.sh run --all-files
+```
 
 ### Security Considerations
 - Never hardcode secrets or API keys
