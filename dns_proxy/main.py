@@ -13,11 +13,9 @@ import sys
 
 # Modified by Claude: 2025-01-11 - Import constants to replace hardcoded values
 from dns_proxy.constants import (
-    CACHE_CLEANUP_INTERVAL,
     CACHE_DEFAULT_TTL,
     CACHE_MAX_SIZE,
     DNS_DEFAULT_PORT,
-    DNS_QUERY_TIMEOUT,
 )
 
 # Modified by Claude: 2025-01-12 - Import health monitoring support
@@ -55,8 +53,8 @@ def setup_logging(log_file=None, log_level="INFO", syslog=False, user=None, grou
             # Create log file with proper ownership from the start
             if not os.path.exists(log_file):
                 # Create the file
-                with open(log_file, "a") as f:
-                    pass
+                with open(log_file, "a"):
+                    pass  # Just create empty file
 
                 # Set ownership if we have user/group info and we're root
                 if user and group and os.getuid() == 0:
@@ -121,7 +119,7 @@ def _check_bindv6only():
     try:
         with open("/proc/sys/net/ipv6/bindv6only", "r") as f:
             return int(f.read().strip())
-    except:
+    except Exception:
         return 0  # Default to dual-stack capable
 
 
@@ -309,7 +307,7 @@ def start_dns_server(config, args, logger, udp_protocol):
             )
     else:
         # Single-stack binding
-        servers = _bind_single_stack(
+        _bind_single_stack(
             reactor, listen_port, listen_address, udp_protocol, tcp_factory, logger
         )
 
@@ -336,7 +334,8 @@ def _parse_arguments():
     parser = argparse.ArgumentParser(
         description="DNS CNAME Flattening Proxy with optional IPv6 filtering. "
         "Supports multiple upstream DNS servers for high availability.",
-        epilog="Configuration supports multiple DNS servers: server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]",
+        epilog="Configuration supports multiple DNS servers: "
+        "server-addresses = 1.1.1.1,8.8.8.8,[2606:4700:4700::1111]",
     )
     parser.add_argument(
         "-c", "--config", default="/etc/dns-proxy/dns-proxy.cfg", help="Configuration file path"
@@ -541,7 +540,8 @@ def _initialize_resolver(resolver_config, args):
     # Create rate limiter (will use default constants from constants.py)
     rate_limiter = RateLimiter()
     logger.info(
-        f"Rate limiting enabled: {rate_limiter.rate_per_ip} queries/sec per IP, burst {rate_limiter.burst_per_ip}"
+        f"Rate limiting enabled: {rate_limiter.rate_per_ip} queries/sec per IP, "
+        f"burst {rate_limiter.burst_per_ip}"
     )
 
     # Determine if we should use health monitoring

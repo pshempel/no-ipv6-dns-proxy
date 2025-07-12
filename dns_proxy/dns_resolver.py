@@ -146,7 +146,8 @@ class CNAMEFlattener:
                         )
                         all_a_records.append(new_a_record)
                         logger.debug(
-                            f"Created A record: {original_query_name} -> {a_rr.payload.dottedQuad()}"
+                            f"Created A record: {original_query_name} -> "
+                            f"{a_rr.payload.dottedQuad()}"
                         )
                 else:
                     logger.warning(f"No A records found for CNAME target {target_name}")
@@ -303,7 +304,8 @@ class DNSProxyResolver:
                     logger.debug(f"    [{i}] AAAA: {rr.name} -> {rr.payload} (TTL: {rr.ttl})")
                 else:
                     logger.debug(
-                        f"    [{i}] {dns.QUERY_TYPES.get(rr.type, rr.type)}: {rr.name} (TTL: {rr.ttl})"
+                        f"    [{i}] {dns.QUERY_TYPES.get(rr.type, rr.type)}: "
+                        f"{rr.name} (TTL: {rr.ttl})"
                     )
             except Exception as e:
                 logger.debug(f"    [{i}] Error logging record: {e}")
@@ -357,7 +359,8 @@ class DNSProxyResolver:
             aaaa_records = [rr for rr in answers if rr.type == dns.AAAA]
 
             logger.debug(
-                f"Flattening CNAME chain: found {len(a_records)} A records, {len(aaaa_records)} AAAA records"
+                f"Flattening CNAME chain: found {len(a_records)} A records, "
+                f"{len(aaaa_records)} AAAA records"
             )
 
             # Modified by Claude: 2025-01-11 - Fixed AAAA-only response handling
@@ -400,7 +403,7 @@ class DNSProxyResolver:
                                     socket.AF_INET6, aaaa_rr.payload._address
                                 )
                                 logger.debug(f"Flattened AAAA: {query_name} -> {ipv6_addr}")
-                            except:
+                            except Exception:
                                 logger.debug(f"Flattened AAAA: {query_name} -> {aaaa_rr.payload}")
                         except Exception as e:
                             logger.error(f"Error flattening AAAA record: {e}")
@@ -417,7 +420,8 @@ class DNSProxyResolver:
                 # No usable records found after filtering
                 if aaaa_records and self.remove_aaaa:
                     logger.info(
-                        f"CNAME flattening: {query_name} had {len(aaaa_records)} AAAA records but remove_aaaa=true, returning empty"
+                        f"CNAME flattening: {query_name} had {len(aaaa_records)} "
+                        f"AAAA records but remove_aaaa=true, returning empty"
                     )
                 else:
                     logger.warning(f"CNAME chain found but no A records for {query_name}")
@@ -547,7 +551,8 @@ class DNSProxyProtocol(protocol.DatagramProtocol):
             query_id = message.id
 
             logger.debug(
-                f"UDP Query from {addr}: {query.name} ({dns.QUERY_TYPES.get(query.type, query.type)})"
+                f"UDP Query from {addr}: {query.name} "
+                f"({dns.QUERY_TYPES.get(query.type, query.type)})"
             )
 
             # Store client info for response
@@ -692,7 +697,8 @@ class DNSTCPProtocol(protocol.Protocol):
             query_id = message.id
 
             logger.debug(
-                f"TCP Query from {self.peer.host}: {query.name} ({dns.QUERY_TYPES.get(query.type, query.type)})"
+                f"TCP Query from {self.peer.host}: {query.name} "
+                f"({dns.QUERY_TYPES.get(query.type, query.type)})"
             )
 
             # Resolve query

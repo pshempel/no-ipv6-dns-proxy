@@ -6,11 +6,10 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from twisted.internet import defer, reactor, task
+from twisted.internet import defer, task
 from twisted.names import client, dns, error
 
 from ..config_human import UpstreamServer
-from ..constants import DNS_QUERY_TIMEOUT
 from .metrics import QueryResult, ServerMetrics
 
 logger = logging.getLogger(__name__)
@@ -132,7 +131,7 @@ class HealthMonitor:
 
             try:
                 # Attempt the query
-                result = yield resolver.query(query)
+                _ = yield resolver.query(query)  # Result not needed, just success/failure
                 response_time = time.time() - start_time
 
                 # Record success
@@ -147,7 +146,8 @@ class HealthMonitor:
                         health.metrics.is_healthy = True
                         health.metrics.marked_down_at = None
                         logger.info(
-                            f"{health.server.name} marked healthy after {recent_successes} successes"
+                            f"{health.server.name} marked healthy after "
+                            f"{recent_successes} successes"
                         )
 
             finally:
