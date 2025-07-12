@@ -129,6 +129,30 @@ Main config file: `/etc/dns-proxy/dns-proxy.cfg`
 - Dual-stack functionality must be tested on systems with different `bindv6only` settings
 - Performance target: 500-1000+ queries/second
 
+### CRITICAL: Always Test Locally Before CI/CD
+**BEFORE pushing to GitHub:**
+```bash
+# 1. Run unit tests locally
+priv_tools/project_run.sh pytest tests/unit/ -v
+
+# 2. Run integration tests locally  
+priv_tools/project_run.sh pytest tests/integration/ -v
+
+# 3. Check for hanging test collection
+priv_tools/project_run.sh pytest --collect-only
+
+# 4. If tests hang, look for:
+- Files with code at module level (not in functions)
+- Scripts with if __name__ == "__main__" in test directories
+- Twisted reactor code running at import time
+```
+
+**Common Test Issues:**
+- Tests hanging for 20+ minutes? Check for non-pytest files in test dirs
+- Server not starting? Check config format matches current API
+- "upstream_server" errors? API changed to "upstream_servers" (plural)
+- "forwarder-dns" errors? Changed to "server-addresses"
+
 ## Conda Environment Management
 
 This project uses a conda environment named `no-ipv6-dns-proxy`. All commands must be run through the project runner script:
