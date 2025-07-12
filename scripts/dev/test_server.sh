@@ -6,8 +6,8 @@ set -e
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Change to repository root, not tests directory
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Change to repository root, not scripts directory
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 # Colors for output

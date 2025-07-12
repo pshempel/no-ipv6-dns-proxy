@@ -23,7 +23,16 @@ class TestConfigurationModes:
     def test_minimal_config(self):
         """Test with absolute minimal configuration"""
         config = """[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-minimal.pid
+
+[log-file]
+log-file = /tmp/dns-proxy-test-minimal.log
+debug-level = INFO
+syslog = false
 """
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
@@ -95,6 +104,9 @@ server-addresses = 8.8.8.8
 listen-address = 127.0.0.1
 listen-port = 0
 remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-human.pid
 
 [upstream:google-primary]
 server-addresses = 8.8.8.8, 8.8.4.4
@@ -113,6 +125,11 @@ server-addresses = 9.9.9.9
 weight = 80
 priority = 3
 health-check = no
+
+[log-file]
+log-file = /tmp/dns-proxy-test-human.log
+debug-level = INFO
+syslog = false
 """
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cfg", delete=False) as f:
@@ -142,7 +159,7 @@ health-check = no
             # Invalid port
             (
                 """[dns-proxy]
-port = 99999
+listen-port = 99999
 server-addresses = 8.8.8.8
 """,
                 "invalid port",
@@ -206,6 +223,9 @@ remove-aaaa = maybe
 listen-address = 127.0.0.1
 listen-port = 0
 remove-aaaa = yes
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-strategies.pid
 
 [upstream:primary]
 server-addresses = 8.8.8.8
@@ -216,6 +236,11 @@ priority = 1
 server-addresses = 1.1.1.1
 weight = 50
 priority = 2
+
+[log-file]
+log-file = /tmp/dns-proxy-test-strategies.log
+debug-level = INFO
+syslog = false
 """
 
         for strategy in strategies:
@@ -246,23 +271,50 @@ priority = 2
         cache_configs = [
             # Minimal cache
             """[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-cache1.pid
 
 [cache]
 cache-size = 10
+
+[log-file]
+log-file = /tmp/dns-proxy-test-cache1.log
+debug-level = INFO
+syslog = false
 """,
             # Large cache
             """[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-cache2.pid
 
 [cache]
 cache-size = 50000
 cache-ttl = 3600
 negative-cache-ttl = 60
+
+[log-file]
+log-file = /tmp/dns-proxy-test-cache2.log
+debug-level = INFO
+syslog = false
 """,
             # No cache section (should use defaults)
             """[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-cache3.pid
+
+[log-file]
+log-file = /tmp/dns-proxy-test-cache3.log
+debug-level = INFO
+syslog = false
 """,
         ]
 
@@ -293,7 +345,11 @@ server-addresses = 8.8.8.8
         log_configs = [
             # File logging
             f"""[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-log1.pid
 
 [log-file]
 log-file = {log_file}
@@ -301,14 +357,22 @@ log-level = DEBUG
 """,
             # Console only
             """[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-log2.pid
 
 [log-console]
 log-level = INFO
 """,
             # Both file and console
             f"""[dns-proxy]
+listen-port = 0
 server-addresses = 8.8.8.8
+user = runner
+group = runner
+pid-file = /tmp/dns-proxy-test-log3.pid
 
 [log-file]
 log-file = {log_file}

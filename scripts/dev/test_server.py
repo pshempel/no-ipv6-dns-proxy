@@ -12,11 +12,21 @@ import sys
 import time
 from pathlib import Path
 
-# Set up test environment (finds repo root and sets Python path)
+# Set up paths for imports
+SCRIPT_DIR = Path(__file__).parent.absolute()
+REPO_ROOT = SCRIPT_DIR.parent.parent
+TESTS_DIR = REPO_ROOT / "tests"
+
+# Add to Python path
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(TESTS_DIR))
+
+# Now import test utilities
 from test_utils import create_test_config as create_config_file
 from test_utils import get_test_config_path, setup_test_environment
 
-REPO_ROOT = setup_test_environment()
+# Setup test environment
+setup_test_environment()
 
 
 def create_test_config(config_path, use_health_monitoring=True):
