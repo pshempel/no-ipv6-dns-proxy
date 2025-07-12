@@ -16,6 +16,32 @@ config.yml.bak
 .env.bak
 
 # ==========================================
+# DEBIAN PACKAGING
+# ==========================================
+# Built packages
+*.deb
+*.ddeb
+*.udeb
+*.dsc
+*.changes
+*.buildinfo
+
+# Build directories
+debian/dns-proxy/
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/*.debhelper.log
+
+# dpkg-buildpackage artifacts
+../dns-proxy_*.deb
+../dns-proxy_*.dsc
+../dns-proxy_*.changes
+../dns-proxy_*.buildinfo
+../dns-proxy_*.tar.gz
+
+# ==========================================
 # PYTHON
 # ==========================================
 # Byte-compiled / optimized / DLL files

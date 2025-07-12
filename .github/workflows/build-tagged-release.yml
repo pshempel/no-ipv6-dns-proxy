@@ -1,0 +1,77 @@
+name: Build Tagged Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v1.2.2)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.tag || github.ref }}
+        
+    - name: Get version from tag
+      id: version
+      run: |
+        if [ "${{ github.event.inputs.tag }}" ]; then
+          VERSION="${{ github.event.inputs.tag }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/}"
+        fi
+        # Remove 'v' prefix
+        VERSION="${VERSION#v}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          debhelper \
+          dh-python \
+          python3-all \
+          python3-setuptools \
+          python3-twisted \
+          python3-openssl \
+          fakeroot
+          
+    - name: Build Debian package
+      run: |
+        dpkg-buildpackage -rfakeroot -b -uc -us
+        mv ../*.deb .
+        
+    - name: Test package
+      run: |
+        sudo dpkg -i dns-proxy_*.deb || sudo apt-get install -f -y
+        dns-proxy --version
+        
+    - name: Create checksum
+      run: |
+        sha256sum dns-proxy_*.deb > dns-proxy_${{ steps.version.outputs.version }}.deb.sha256
+        
+    - name: Upload to release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dns-proxy_*.deb
+          dns-proxy_*.deb.sha256
+        fail_on_unmatched_files: true
+        
+    - name: Upload as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: debian-package-${{ steps.version.outputs.version }}
+        path: |
+          dns-proxy_*.deb
+          dns-proxy_*.deb.sha256

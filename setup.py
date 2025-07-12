@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
 from setuptools import find_packages, setup
+
+# Add the project directory to the path so we can import the version
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from dns_proxy.version import __author__, __email__, __version__  # noqa: E402
 
 
 def read_readme():
@@ -21,12 +26,12 @@ def read_requirements():
 
 setup(
     name="dns-proxy",
-    version="1.2.1",
+    version=__version__,
     description="DNS CNAME Flattening Proxy",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    author="DNS Proxy Team",
-    author_email="pshempel@linuxsrc.com",
+    author=__author__,
+    author_email=__email__,
     url="https://github.com/pshempel/dns-proxy",
     packages=find_packages(),
     include_package_data=True,

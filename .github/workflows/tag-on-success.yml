@@ -1,0 +1,58 @@
+name: Tag on Successful Build
+
+on:
+  workflow_run:
+    workflows: ["Test DNS Proxy"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  check-and-tag:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        
+    - name: Check if version changed
+      id: version_check
+      run: |
+        # Get current version
+        CURRENT_VERSION=$(python3 -c "exec(open('dns_proxy/version.py').read()); print(__version__)")
+        
+        # Check if tag already exists
+        if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
+          echo "Tag v$CURRENT_VERSION already exists"
+          echo "should_tag=false" >> $GITHUB_OUTPUT
+        else
+          echo "New version detected: $CURRENT_VERSION"
+          echo "should_tag=true" >> $GITHUB_OUTPUT
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Create tag
+      if: steps.version_check.outputs.should_tag == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "v${{ steps.version_check.outputs.version }}" -m "Auto-tag v${{ steps.version_check.outputs.version }} after successful tests"
+        git push origin "v${{ steps.version_check.outputs.version }}"
+        
+    - name: Trigger build workflow
+      if: steps.version_check.outputs.should_tag == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'build-tagged-release.yml',
+            ref: 'main',
+            inputs: {
+              tag: 'v${{ steps.version_check.outputs.version }}'
+            }
+          })

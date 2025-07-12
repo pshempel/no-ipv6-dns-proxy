@@ -1,20 +1,113 @@
-name: Release Debian Package
+name: Release DNS Proxy
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # Triggers on tags like v1.2.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.2)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: true
+        type: string
 
 jobs:
-  build-and-release:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Need full history for changelog
+    
+    - name: Validate version format
+      id: version
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Invalid version format. Please use X.Y.Z"
+          exit 1
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Check if tag already exists
+      run: |
+        if git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1; then
+          echo "Tag v${{ github.event.inputs.version }} already exists!"
+          exit 1
+        fi
+    
+    - name: Update version in source
+      run: |
+        # Update version.py
+        cat > dns_proxy/version.py << EOF
+        """
+        Version information for dns-proxy
+
+        This is the single source of truth for version numbers.
+        """
+
+        __version__ = "${{ github.event.inputs.version }}"
+        __author__ = "DNS Proxy Team"
+        __email__ = "pshempel@linuxsrc.com"
+        EOF
+        
+    - name: Update debian changelog
+      run: |
+        python3 scripts/update_debian_version.py "${{ github.event.inputs.release_notes }}"
+        
+    - name: Commit version updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add dns_proxy/version.py debian/changelog
+        git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+        
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+
+  test-and-build:
+    needs: prepare-release
     runs-on: ubuntu-22.04
     
     steps:
     - uses: actions/checkout@v3
-    
+      with:
+        ref: ${{ github.ref }}  # Get the updated version
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e .
+        sudo apt-get update && sudo apt-get install -y dnsutils
+        
+    - name: Run all tests
+      run: |
+        # Run comprehensive test suite
+        pytest tests/integration/test_all_modes.py -v
+        pytest tests/integration/test_streaming_services.py -v
+        pytest tests/integration/test_end_to_end.py -v
+        
+    - name: Run security scan
+      run: |
+        pip install bandit
+        bandit -r dns_proxy/ -ll  # Only high severity issues fail the build
+        
     - name: Install build dependencies
       run: |
-        sudo apt-get update
         sudo apt-get install -y \
           build-essential \
           debhelper \
@@ -24,49 +117,85 @@ jobs:
           python3-twisted \
           python3-openssl \
           fakeroot
-    
+          
     - name: Build Debian package
       run: |
         dpkg-buildpackage -rfakeroot -b -uc -us
+        mv ../*.deb .
         
-    - name: Get package info
-      id: pkg_info
+    - name: Test package installation
       run: |
-        DEB_FILE=$(ls ../*.deb | head -1)
-        DEB_NAME=$(basename $DEB_FILE)
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "deb_file=$DEB_FILE" >> $GITHUB_OUTPUT
-        echo "deb_name=$DEB_NAME" >> $GITHUB_OUTPUT
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        sudo dpkg -i dns-proxy_*.deb || sudo apt-get install -f -y
+        # Verify installation
+        dns-proxy --version | grep "${{ needs.prepare-release.outputs.version }}"
         
-    - name: Create Release
-      uses: actions/create-release@v1
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v4
       with:
-        tag_name: ${{ github.ref }}
-        release_name: DNS Proxy ${{ steps.pkg_info.outputs.version }}
+        name: debian-package-${{ needs.prepare-release.outputs.version }}
+        path: "*.deb"
+
+  create-release:
+    needs: [prepare-release, test-and-build]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.ref }}
+        
+    - name: Download package
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package-${{ needs.prepare-release.outputs.version }}
+        
+    - name: Create tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "v${{ needs.prepare-release.outputs.version }}" -m "Release v${{ needs.prepare-release.outputs.version }}"
+        git push origin "v${{ needs.prepare-release.outputs.version }}"
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.prepare-release.outputs.version }}
+        name: DNS Proxy v${{ needs.prepare-release.outputs.version }}
         body: |
-          ## DNS Proxy ${{ steps.pkg_info.outputs.version }}
+          ## Release Notes
+          ${{ github.event.inputs.release_notes }}
           
-          ### Installation
+          ## Installation
+          
+          Download the `.deb` package and install with:
           ```bash
-          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.pkg_info.outputs.deb_name }}
-          sudo dpkg -i ${{ steps.pkg_info.outputs.deb_name }}
+          sudo dpkg -i dns-proxy_${{ needs.prepare-release.outputs.version }}-1_all.deb
           ```
           
-          ### Changes
-          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/debian/changelog) for details.
+          Or if you have dependency issues:
+          ```bash
+          sudo dpkg -i dns-proxy_${{ needs.prepare-release.outputs.version }}-1_all.deb
+          sudo apt-get install -f
+          ```
+          
+          ## What's Changed
+          See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/debian/changelog) for details.
+        files: |
+          dns-proxy_*.deb
         draft: false
         prerelease: false
+
+  verify-installation:
+    needs: [prepare-release, create-release]
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Download release
+      run: |
+        wget https://github.com/${{ github.repository }}/releases/download/v${{ needs.prepare-release.outputs.version }}/dns-proxy_${{ needs.prepare-release.outputs.version }}-1_all.deb
         
-    - name: Upload Debian Package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.pkg_info.outputs.deb_file }}
-        asset_name: ${{ steps.pkg_info.outputs.deb_name }}
-        asset_content_type: application/vnd.debian.binary-package
+    - name: Install and test
+      run: |
+        sudo dpkg -i dns-proxy_*.deb || sudo apt-get install -f -y
+        dns-proxy --version
+        sudo systemctl status dns-proxy || true
